@@ -1,0 +1,126 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore data directory
+MultiTP/data/data/*.csv
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# mypy
+.mypy_cache/
+.dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# VS Code
+.vscode/
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Output, logs, and temporary files
+output_demo/
+*.log
+*.tmp
+*.bak
+
+# Environment files
+.env
+.env.*
+
+# Shell scripts output
+*.sh~
+
+# Ignore data files (if not tracked)
+MultiTP/data/data/
+
+# Ignore model checkpoints or large files
+*.ckpt
+*.pth
+*.pt
+*.h5
+*.onnx
+*.pb
+
+# Ignore R output
+*.Rhistory
+*.RData
+*.Rproj.user/
+
+# Ignore HTML/plot outputs
+*.html
+MultiTP/code/generate_plots/*.html
+
+# Ignore generated figures
+MultiTP/code/generate_plots/*.png
+MultiTP/code/generate_plots/*.jpg
+MultiTP/code/generate_plots/*.svg
+
+# Ignore user-specific config
+MultiTP/multi_tp/conf/
+
+# Ignore efficiency logs
+MultiTP/multi_tp/efficiency/
+
+# Ignore pathfinder outputs
+MultiTP/multi_tp/pathfinder/
+
+MultiTP_kaggle_pipeline.py
+
+MultiTP/data/data/
+
+
