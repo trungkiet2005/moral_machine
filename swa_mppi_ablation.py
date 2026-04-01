@@ -140,6 +140,8 @@ class SWAConfig:
     K_range: List[int] = field(default_factory=lambda: [16, 32, 64, 128, 256, 512])
     tau_range: List[float] = field(default_factory=lambda: [0.001, 0.005, 0.01, 0.02, 0.05, 0.1])
     logit_temp_range: List[float] = field(default_factory=lambda: [1.0, 2.0, 3.0, 5.0, 8.0])
+    decision_temp_range: List[float] = field(default_factory=lambda: [0.1, 0.25, 0.5, 0.75, 1.0, 2.0, 5.0])
+    category_temp_scales: List[float] = field(default_factory=lambda: [0.5, 1.0, 2.0])
 
     # Paths
     dataset_path: str = "data/scenarios.csv"
@@ -1374,6 +1376,11 @@ class ImplicitSWAController:
         pt_beta: float = 0.88,
         pt_kappa: float = 2.25,
         decision_temperature: float = 1.0,
+        # Ablation flags
+        force_no_mppi: bool = False,
+        force_always_mppi: bool = False,
+        utility_fn: str = "prospect_theory",
+        skip_debiasing: bool = False,
     ):
         self.model = model
         self.tokenizer = tokenizer
@@ -1391,6 +1398,10 @@ class ImplicitSWAController:
         self.logit_temperature = logit_temperature
         self.category_logit_temperatures = category_logit_temperatures or {}
         self.decision_temperature = decision_temperature
+        self.force_no_mppi = force_no_mppi
+        self.force_always_mppi = force_always_mppi
+        self.utility_fn = utility_fn
+        self.skip_debiasing = skip_debiasing
         self.device = next(model.parameters()).device
         self.chat_helper = ChatTemplateHelper(tokenizer)
 
@@ -1534,6 +1545,22 @@ class ImplicitSWAController:
             -self.pt_kappa * x.abs().pow(self.pt_beta),
         )
 
+    def _quadratic_value(self, x: torch.Tensor) -> torch.Tensor:
+        """Simple quadratic utility: v(x) = x^2 * sign(x). No loss aversion."""
+        return x.abs().pow(2) * x.sign()
+
+    def _linear_value(self, x: torch.Tensor) -> torch.Tensor:
+        """Linear (risk-neutral) utility: v(x) = x."""
+        return x
+
+    def _compute_utility(self, x: torch.Tensor) -> torch.Tensor:
+        """Dispatch to the selected utility function."""
+        if self.utility_fn == "quadratic":
+            return self._quadratic_value(x)
+        elif self.utility_fn == "linear":
+            return self._linear_value(x)
+        return self._prospect_value(x)
+
     @torch.no_grad()
     def _mppi_solve_decision(
         self,
@@ -1549,8 +1576,8 @@ class ImplicitSWAController:
         for i in range(self.N):
             r_i = r_agents[i].item()
             r_others = (r_agents.sum() - r_agents[i]) / max(1, self.N - 1)
-            u_private = self._prospect_value(r_i * delta_pert)
-            u_social = self._prospect_value(r_others.item() * delta_pert)
+            u_private = self._compute_utility(r_i * delta_pert)
+            u_social = self._compute_utility(r_others.item() * delta_pert)
             u_i = (1 - self.lambda_coop) * u_private + self.lambda_coop * u_social
             U_total += u_i
         U_total /= self.N
@@ -1582,7 +1609,12 @@ class ImplicitSWAController:
         z_base, z_agents = self._evaluate_all_agents(query_ids, logit_temp=logit_temp)
         r_agents, variance, delta_consensus = self._compute_decision_rewards(z_base, z_agents)
 
-        mppi_triggered = variance >= self.tau_conflict
+        if self.force_no_mppi:
+            mppi_triggered = False
+        elif self.force_always_mppi:
+            mppi_triggered = True
+        else:
+            mppi_triggered = variance >= self.tau_conflict
 
         if mppi_triggered:
             delta_star = self._mppi_solve_decision(delta_consensus, r_agents, z_base)
@@ -1633,6 +1665,11 @@ class ImplicitSWAController:
         Runs TWO passes — original and LEFT/RIGHT-swapped — to cancel out
         the model's intrinsic token bias toward LEFT or RIGHT.
         """
+        if self.skip_debiasing:
+            return self._predict_single_pass(
+                user_query, preferred_on_right, phenomenon_category, lang
+            )
+
         # Pass 1: original ordering
         r1 = self._predict_single_pass(
             user_query, preferred_on_right, phenomenon_category, lang
@@ -2439,10 +2476,31 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
     print(f"\n[ABLATION] Running ablation studies on {country} ({len(ablation_df)} scenarios)")
     lang = _COUNTRY_LANG.get(country, "en")
     human_amce = load_human_amce(cfg.human_amce_path, country)
-    results = {"lambda": [], "K": [], "tau": [], "logit_temperature": []}
+    results = {
+        "lambda": [], "K": [], "tau": [], "logit_temperature": [],
+        "no_mppi_vs_full": {},
+        "always_mppi_vs_adaptive": {},
+        "utility_function": [],
+        "decision_temperature": [],
+        "category_temperature": [],
+        "no_utilitarian": {},
+        "debiasing": {},
+    }
 
-    def _run_sweep_controller(ctrl, rows):
-        """Helper: run controller over rows, return results list."""
+    # -- shared kwargs for creating default-config controllers --
+    _base_kwargs = dict(
+        lambda_coop=cfg.lambda_coop, alpha_kl=cfg.alpha_kl,
+        K_samples=cfg.K_samples, noise_std=cfg.noise_std,
+        temperature=cfg.temperature, tau_conflict=cfg.tau_conflict,
+        logit_temperature=cfg.logit_temperature,
+        category_logit_temperatures=cfg.category_logit_temperatures,
+        pt_alpha=cfg.pt_alpha, pt_beta=cfg.pt_beta, pt_kappa=cfg.pt_kappa,
+        decision_temperature=cfg.decision_temperature,
+    )
+
+    def _run_sweep_controller(ctrl, rows, collect_extra=False):
+        """Helper: run controller over rows, return results list.
+        If collect_extra=True, also captures positional_bias, mppi_triggered, mppi_flipped."""
         out = []
         for _, row in rows.iterrows():
             prompt = row.get("Prompt", row.get("prompt", ""))
@@ -2453,7 +2511,7 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
                                 preferred_on_right=pref_right,
                                 phenomenon_category=cat,
                                 lang=lang)
-            out.append({
+            entry = {
                 "phenomenon_category": row.get("phenomenon_category", "Unknown"),
                 "this_group_name": row.get("this_group_name", "Unknown"),
                 "n_left": int(row.get("n_left", 1)),
@@ -2462,25 +2520,35 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
                 "p_spare_preferred": pred["p_spare_preferred"],
                 "variance": pred["variance"],
                 "latency": 0,
-            })
+            }
+            if collect_extra:
+                entry["positional_bias"] = pred.get("positional_bias", np.nan)
+                entry["mppi_triggered"] = pred.get("mppi_triggered", False)
+                entry["mppi_flipped"] = pred.get("mppi_flipped", False)
+            out.append(entry)
         return out
+
+    def _eval_alignment(rows_out):
+        """Helper: compute AMCE and alignment metrics from sweep output."""
+        temp_df = pd.DataFrame(rows_out)
+        model_amce = compute_amce_from_preferences(temp_df)
+        alignment = compute_alignment_metrics(model_amce, human_amce)
+        return model_amce, alignment
+
+    # =====================================================================
+    # PART A: HYPERPARAMETER SWEEPS (existing)
+    # =====================================================================
 
     # --- λ sweep ---
     print("[ABLATION] Sweeping λ...")
     for lam in tqdm(cfg.lambda_range, desc="λ sweep"):
         ctrl = ImplicitSWAController(
             model, tokenizer, personas,
-            lambda_coop=lam, alpha_kl=cfg.alpha_kl, K_samples=cfg.K_samples,
-            noise_std=cfg.noise_std, temperature=cfg.temperature,
-            tau_conflict=cfg.tau_conflict, logit_temperature=cfg.logit_temperature,
-            category_logit_temperatures=cfg.category_logit_temperatures,
-            pt_alpha=cfg.pt_alpha, pt_beta=cfg.pt_beta, pt_kappa=cfg.pt_kappa,
+            **{**_base_kwargs, "lambda_coop": lam},
         )
 
         rows_out = _run_sweep_controller(ctrl, ablation_df)
-        temp_df = pd.DataFrame(rows_out)
-        model_amce = compute_amce_from_preferences(temp_df)
-        alignment = compute_alignment_metrics(model_amce, human_amce)
+        _, alignment = _eval_alignment(rows_out)
         results["lambda"].append({
             "value": lam,
             "jsd": alignment.get("jsd", np.nan),
@@ -2495,11 +2563,7 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
     for K in tqdm(cfg.K_range, desc="K sweep"):
         ctrl = ImplicitSWAController(
             model, tokenizer, personas,
-            lambda_coop=cfg.lambda_coop, alpha_kl=cfg.alpha_kl, K_samples=K,
-            noise_std=cfg.noise_std, temperature=cfg.temperature,
-            tau_conflict=cfg.tau_conflict, logit_temperature=cfg.logit_temperature,
-            category_logit_temperatures=cfg.category_logit_temperatures,
-            pt_alpha=cfg.pt_alpha, pt_beta=cfg.pt_beta, pt_kappa=cfg.pt_kappa,
+            **{**_base_kwargs, "K_samples": K},
         )
 
         latencies = []
@@ -2537,11 +2601,7 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
     for tau in tqdm(cfg.tau_range, desc="τ sweep"):
         ctrl = ImplicitSWAController(
             model, tokenizer, personas,
-            lambda_coop=cfg.lambda_coop, alpha_kl=cfg.alpha_kl, K_samples=cfg.K_samples,
-            noise_std=cfg.noise_std, temperature=cfg.temperature,
-            tau_conflict=tau, logit_temperature=cfg.logit_temperature,
-            category_logit_temperatures=cfg.category_logit_temperatures,
-            pt_alpha=cfg.pt_alpha, pt_beta=cfg.pt_beta, pt_kappa=cfg.pt_kappa,
+            **{**_base_kwargs, "tau_conflict": tau},
         )
 
         trigger_count, total, latencies = 0, 0, []
@@ -2565,21 +2625,15 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
     # --- logit_temperature sweep ---
     print("[ABLATION] Sweeping T_logit...")
     for lt in tqdm(cfg.logit_temp_range, desc="T_logit sweep"):
-        # Override Species temperature to lt * (8/3) to keep ratio
         cat_temps = {k: lt * (v / 3.0) for k, v in cfg.category_logit_temperatures.items()}
         ctrl = ImplicitSWAController(
             model, tokenizer, personas,
-            lambda_coop=cfg.lambda_coop, alpha_kl=cfg.alpha_kl, K_samples=cfg.K_samples,
-            noise_std=cfg.noise_std, temperature=cfg.temperature,
-            tau_conflict=cfg.tau_conflict, logit_temperature=lt,
-            category_logit_temperatures=cat_temps,
-            pt_alpha=cfg.pt_alpha, pt_beta=cfg.pt_beta, pt_kappa=cfg.pt_kappa,
+            **{**_base_kwargs, "logit_temperature": lt,
+               "category_logit_temperatures": cat_temps},
         )
 
         rows_out = _run_sweep_controller(ctrl, ablation_df)
-        temp_df = pd.DataFrame(rows_out)
-        model_amce = compute_amce_from_preferences(temp_df)
-        alignment = compute_alignment_metrics(model_amce, human_amce)
+        _, alignment = _eval_alignment(rows_out)
         results["logit_temperature"].append({
             "value": lt,
             "jsd": alignment.get("jsd", np.nan),
@@ -2589,6 +2643,280 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
         })
         del ctrl; torch.cuda.empty_cache()
 
+    # =====================================================================
+    # PART B: STRUCTURAL ABLATIONS
+    # =====================================================================
+
+    # --- Ablation 1: Persona-only consensus (no MPPI) vs. full SWA-MPPI ---
+    print("[ABLATION] 1/6 — No-MPPI (consensus only) vs. full SWA-MPPI...")
+    ctrl_no_mppi = ImplicitSWAController(
+        model, tokenizer, personas,
+        **{**_base_kwargs, "force_no_mppi": True},
+    )
+    rows_no_mppi = _run_sweep_controller(ctrl_no_mppi, ablation_df, collect_extra=True)
+    amce_no_mppi, align_no_mppi = _eval_alignment(rows_no_mppi)
+    del ctrl_no_mppi; torch.cuda.empty_cache()
+
+    ctrl_full = ImplicitSWAController(model, tokenizer, personas, **_base_kwargs)
+    rows_full = _run_sweep_controller(ctrl_full, ablation_df, collect_extra=True)
+    amce_full, align_full = _eval_alignment(rows_full)
+    del ctrl_full; torch.cuda.empty_cache()
+
+    results["no_mppi_vs_full"] = {
+        "no_mppi": {
+            "jsd": align_no_mppi.get("jsd", np.nan),
+            "pearson_r": align_no_mppi.get("pearson_r", np.nan),
+            "mae": align_no_mppi.get("mae", np.nan),
+            "cosine_sim": align_no_mppi.get("cosine_sim", np.nan),
+            "amce": amce_no_mppi,
+        },
+        "full_swa_mppi": {
+            "jsd": align_full.get("jsd", np.nan),
+            "pearson_r": align_full.get("pearson_r", np.nan),
+            "mae": align_full.get("mae", np.nan),
+            "cosine_sim": align_full.get("cosine_sim", np.nan),
+            "amce": amce_full,
+            "trigger_rate": np.mean([r["mppi_triggered"] for r in rows_full]),
+        },
+    }
+
+    # --- Ablation 2: Always-on MPPI vs. adaptive triggering ---
+    print("[ABLATION] 2/6 — Always-on MPPI vs. adaptive triggering...")
+    ctrl_always = ImplicitSWAController(
+        model, tokenizer, personas,
+        **{**_base_kwargs, "force_always_mppi": True},
+    )
+    latencies_always = []
+    rows_always = []
+    for _, row in ablation_df.iterrows():
+        prompt = row.get("Prompt", row.get("prompt", ""))
+        if not prompt: continue
+        pref_right = bool(row.get("preferred_on_right", 1))
+        cat = row.get("phenomenon_category", "default")
+        t0 = time.time()
+        pred = ctrl_always.predict(prompt, preferred_on_right=pref_right,
+                                   phenomenon_category=cat, lang=lang)
+        latencies_always.append(time.time() - t0)
+        rows_always.append({
+            "phenomenon_category": row.get("phenomenon_category", "Unknown"),
+            "this_group_name": row.get("this_group_name", "Unknown"),
+            "n_left": int(row.get("n_left", 1)),
+            "n_right": int(row.get("n_right", 1)),
+            "preferred_on_right": int(pref_right),
+            "p_spare_preferred": pred["p_spare_preferred"],
+            "variance": pred["variance"],
+        })
+    amce_always, align_always = _eval_alignment(rows_always)
+    del ctrl_always; torch.cuda.empty_cache()
+
+    # Adaptive: reuse rows_full from ablation 1 (default config)
+    latencies_adaptive = []
+    ctrl_adaptive = ImplicitSWAController(model, tokenizer, personas, **_base_kwargs)
+    rows_adaptive = []
+    for _, row in ablation_df.iterrows():
+        prompt = row.get("Prompt", row.get("prompt", ""))
+        if not prompt: continue
+        pref_right = bool(row.get("preferred_on_right", 1))
+        cat = row.get("phenomenon_category", "default")
+        t0 = time.time()
+        pred = ctrl_adaptive.predict(prompt, preferred_on_right=pref_right,
+                                     phenomenon_category=cat, lang=lang)
+        latencies_adaptive.append(time.time() - t0)
+        rows_adaptive.append({
+            "phenomenon_category": row.get("phenomenon_category", "Unknown"),
+            "this_group_name": row.get("this_group_name", "Unknown"),
+            "n_left": int(row.get("n_left", 1)),
+            "n_right": int(row.get("n_right", 1)),
+            "preferred_on_right": int(pref_right),
+            "p_spare_preferred": pred["p_spare_preferred"],
+            "variance": pred["variance"],
+            "mppi_triggered": pred.get("mppi_triggered", False),
+        })
+    amce_adaptive, align_adaptive = _eval_alignment(rows_adaptive)
+    del ctrl_adaptive; torch.cuda.empty_cache()
+
+    results["always_mppi_vs_adaptive"] = {
+        "always_mppi": {
+            "jsd": align_always.get("jsd", np.nan),
+            "pearson_r": align_always.get("pearson_r", np.nan),
+            "mae": align_always.get("mae", np.nan),
+            "mean_latency_ms": np.mean(latencies_always) * 1000,
+            "trigger_rate": 1.0,
+        },
+        "adaptive": {
+            "jsd": align_adaptive.get("jsd", np.nan),
+            "pearson_r": align_adaptive.get("pearson_r", np.nan),
+            "mae": align_adaptive.get("mae", np.nan),
+            "mean_latency_ms": np.mean(latencies_adaptive) * 1000,
+            "trigger_rate": np.mean([r["mppi_triggered"] for r in rows_adaptive]),
+        },
+    }
+
+    # --- Ablation 3: Prospect Theory vs. simpler utility functions ---
+    print("[ABLATION] 3/6 — Utility function comparison (PT vs. quadratic vs. linear)...")
+    for uf_name in ["prospect_theory", "quadratic", "linear"]:
+        ctrl_uf = ImplicitSWAController(
+            model, tokenizer, personas,
+            **{**_base_kwargs, "utility_fn": uf_name},
+        )
+        rows_uf = _run_sweep_controller(ctrl_uf, ablation_df)
+        _, align_uf = _eval_alignment(rows_uf)
+        results["utility_function"].append({
+            "utility": uf_name,
+            "jsd": align_uf.get("jsd", np.nan),
+            "pearson_r": align_uf.get("pearson_r", np.nan),
+            "mae": align_uf.get("mae", np.nan),
+            "cosine_sim": align_uf.get("cosine_sim", np.nan),
+        })
+        del ctrl_uf; torch.cuda.empty_cache()
+
+    # --- Ablation 4a: decision_temperature sweep ---
+    print("[ABLATION] 4/6 — T_dec and T_cat sensitivity...")
+    for dt in tqdm(cfg.decision_temp_range, desc="T_dec sweep"):
+        ctrl_dt = ImplicitSWAController(
+            model, tokenizer, personas,
+            **{**_base_kwargs, "decision_temperature": dt},
+        )
+        rows_dt = _run_sweep_controller(ctrl_dt, ablation_df)
+        _, align_dt = _eval_alignment(rows_dt)
+        results["decision_temperature"].append({
+            "value": dt,
+            "jsd": align_dt.get("jsd", np.nan),
+            "pearson_r": align_dt.get("pearson_r", np.nan),
+            "mae": align_dt.get("mae", np.nan),
+        })
+        del ctrl_dt; torch.cuda.empty_cache()
+
+    # --- Ablation 4b: per-category logit temperature sensitivity ---
+    for cat_name, default_temp in cfg.category_logit_temperatures.items():
+        for scale in cfg.category_temp_scales:
+            override_temps = dict(cfg.category_logit_temperatures)
+            override_temps[cat_name] = default_temp * scale
+            ctrl_ct = ImplicitSWAController(
+                model, tokenizer, personas,
+                **{**_base_kwargs, "category_logit_temperatures": override_temps},
+            )
+            rows_ct = _run_sweep_controller(ctrl_ct, ablation_df)
+            _, align_ct = _eval_alignment(rows_ct)
+            results["category_temperature"].append({
+                "category": cat_name,
+                "scale_factor": scale,
+                "effective_temp": default_temp * scale,
+                "jsd": align_ct.get("jsd", np.nan),
+                "pearson_r": align_ct.get("pearson_r", np.nan),
+            })
+            del ctrl_ct; torch.cuda.empty_cache()
+
+    # --- Ablation 5: Removing the utilitarian persona ---
+    print("[ABLATION] 5/6 — Removing utilitarian persona...")
+    cultural_personas = [p for p in personas if "utilitarian" not in p.lower()]
+    if len(cultural_personas) == len(personas):
+        cultural_personas = personas[:3]
+
+    ctrl_no_util = ImplicitSWAController(
+        model, tokenizer, cultural_personas, **_base_kwargs,
+    )
+    rows_no_util = _run_sweep_controller(ctrl_no_util, ablation_df)
+    amce_no_util, align_no_util = _eval_alignment(rows_no_util)
+    del ctrl_no_util; torch.cuda.empty_cache()
+
+    ctrl_all4 = ImplicitSWAController(model, tokenizer, personas, **_base_kwargs)
+    rows_all4 = _run_sweep_controller(ctrl_all4, ablation_df)
+    amce_all4, align_all4 = _eval_alignment(rows_all4)
+    del ctrl_all4; torch.cuda.empty_cache()
+
+    results["no_utilitarian"] = {
+        "with_utilitarian": {
+            "n_personas": len(personas),
+            "jsd": align_all4.get("jsd", np.nan),
+            "pearson_r": align_all4.get("pearson_r", np.nan),
+            "mae": align_all4.get("mae", np.nan),
+            "amce": amce_all4,
+        },
+        "without_utilitarian": {
+            "n_personas": len(cultural_personas),
+            "jsd": align_no_util.get("jsd", np.nan),
+            "pearson_r": align_no_util.get("pearson_r", np.nan),
+            "mae": align_no_util.get("mae", np.nan),
+            "amce": amce_no_util,
+        },
+    }
+
+    # --- Ablation 6: Contribution of positional debiasing ---
+    print("[ABLATION] 6/6 — Positional debiasing contribution...")
+
+    # Condition A: Single-pass (no debiasing) — but measure bias via both orderings
+    ctrl_single = ImplicitSWAController(
+        model, tokenizer, personas,
+        **{**_base_kwargs, "skip_debiasing": True},
+    )
+    rows_single = []
+    positional_biases_single = []
+    sf = _SCENARIO_FRAME_I18N.get(lang, _SCENARIO_FRAME_I18N["en"])
+    left_label = sf["left_lane"]
+    right_label = sf["right_lane"]
+    ga, gb = sf.get("group_a", "Group A"), sf.get("group_b", "Group B")
+
+    for _, row in ablation_df.iterrows():
+        prompt = row.get("Prompt", row.get("prompt", ""))
+        if not prompt: continue
+        pref_right = bool(row.get("preferred_on_right", 1))
+        cat = row.get("phenomenon_category", "default")
+
+        # Pass 1 (used for actual prediction)
+        r1 = ctrl_single.predict(prompt, preferred_on_right=pref_right,
+                                 phenomenon_category=cat, lang=lang)
+
+        # Pass 2 (only to measure positional bias)
+        _PH = "\x00SWAP_PLACEHOLDER\x00"
+        swapped = prompt.replace(left_label, _PH)
+        swapped = swapped.replace(right_label, left_label)
+        swapped = swapped.replace(_PH, right_label)
+        if ga != gb:
+            swapped = swapped.replace(ga, _PH)
+            swapped = swapped.replace(gb, ga)
+            swapped = swapped.replace(_PH, gb)
+        r2 = ctrl_single.predict(swapped, preferred_on_right=not pref_right,
+                                 phenomenon_category=cat, lang=lang)
+
+        positional_biases_single.append(abs(r1["p_spare_preferred"] - r2["p_spare_preferred"]))
+        rows_single.append({
+            "phenomenon_category": row.get("phenomenon_category", "Unknown"),
+            "this_group_name": row.get("this_group_name", "Unknown"),
+            "n_left": int(row.get("n_left", 1)),
+            "n_right": int(row.get("n_right", 1)),
+            "preferred_on_right": int(pref_right),
+            "p_spare_preferred": r1["p_spare_preferred"],
+        })
+    amce_single, align_single = _eval_alignment(rows_single)
+    del ctrl_single; torch.cuda.empty_cache()
+
+    # Condition B: 2-pass debiased (default)
+    ctrl_debiased = ImplicitSWAController(model, tokenizer, personas, **_base_kwargs)
+    rows_debiased = _run_sweep_controller(ctrl_debiased, ablation_df, collect_extra=True)
+    amce_debiased, align_debiased = _eval_alignment(rows_debiased)
+    positional_biases_debiased = [r["positional_bias"] for r in rows_debiased
+                                  if not np.isnan(r.get("positional_bias", np.nan))]
+    del ctrl_debiased; torch.cuda.empty_cache()
+
+    results["debiasing"] = {
+        "single_pass": {
+            "jsd": align_single.get("jsd", np.nan),
+            "pearson_r": align_single.get("pearson_r", np.nan),
+            "mae": align_single.get("mae", np.nan),
+            "mean_positional_bias": float(np.mean(positional_biases_single)) if positional_biases_single else np.nan,
+            "median_positional_bias": float(np.median(positional_biases_single)) if positional_biases_single else np.nan,
+        },
+        "two_pass_debiased": {
+            "jsd": align_debiased.get("jsd", np.nan),
+            "pearson_r": align_debiased.get("pearson_r", np.nan),
+            "mae": align_debiased.get("mae", np.nan),
+            "mean_positional_bias": float(np.mean(positional_biases_debiased)) if positional_biases_debiased else np.nan,
+            "median_positional_bias": float(np.median(positional_biases_debiased)) if positional_biases_debiased else np.nan,
+        },
+    }
+
+    print(f"[ABLATION] All ablation studies complete for {country}.")
     return results
 
 
