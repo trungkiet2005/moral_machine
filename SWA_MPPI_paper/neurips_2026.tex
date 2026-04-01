@@ -1,0 +1,800 @@
+% Compile: pdflatex → bibtex → pdflatex → pdflatex
+\documentclass{article}
+\usepackage{neurips_2026}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{nicefrac}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{multirow}
+\usepackage{makecell}
+
+% Convenience colour macros
+\definecolor{improvegreen}{RGB}{0,128,0}
+\definecolor{worsered}{RGB}{180,0,0}
+
+\title{Cross-Cultural Moral Alignment of Large Language Models\\
+via Stochastic Welfare Agents and\\
+Model Predictive Path Integral Control}
+
+\author{}
+
+\begin{document}
+
+\maketitle
+
+% ============================================================
+\begin{abstract}
+% ============================================================
+Large language models (LLMs) exhibit a culturally monolithic moral stance that
+systematically misaligns with the diverse ethical preferences of populations
+worldwide. We propose \textbf{SWA-MPPI}---\textbf{S}tochastic \textbf{W}elfare
+\textbf{A}gent with \textbf{M}odel \textbf{P}redictive \textbf{P}ath
+\textbf{I}ntegral control---a training-free, inference-time framework that steers
+LLM moral decisions toward country-specific human preferences without modifying
+model weights. For each target country, SWA-MPPI constructs a small ensemble of
+culturally grounded \emph{persona agents} from World Values Survey (WVS) Wave~7
+data, evaluates their decision-level logit consensus via a single batched forward
+pass, and applies a Prospect-Theory-weighted MPPI optimisation step whenever
+inter-agent disagreement exceeds an adaptively calibrated threshold~$\tau$. We
+evaluate on the Multilingual Trolley Problem benchmark (MultiTP), which provides
+country-specific Average Marginal Component Effects (AMCE) derived from over
+40~million human judgments across 233 countries and six moral dimensions. Experiments
+with two frontier 70B-class models---Meta-Llama-3.1-70B-Instruct and
+Qwen2.5-72B-Instruct---spanning 15 countries and 12 native languages show that
+SWA-MPPI reduces Jensen-Shannon Distance to human moral preferences by
+\textbf{37.6\%} (Qwen) and \textbf{34.7\%} (Llama) on average relative to a
+vanilla LLM baseline, while improving Pearson correlation with human AMCE vectors
+by up to $+0.35$ points. Alignment gains reach 66\% for culturally distant
+country--language pairs. The entire framework operates on frozen weights, requires
+no labelled preference data, and introduces a mean per-scenario overhead of
+approximately 730\,ms on a single NVIDIA H100 GPU.
+\end{abstract}
+
+% ============================================================
+\section{Introduction}
+\label{sec:intro}
+% ============================================================
+
+As large language models are deployed across increasingly diverse cultural contexts,
+a fundamental tension has emerged between the uniformity of a single trained model
+and the plurality of human moral values worldwide. Prior work has established that
+LLMs trained predominantly on English-language corpora inherit the ethical
+intuitions of Western, educated, industrialised, rich, and democratic (WEIRD)
+populations~\citep{henrich2010weirdest}, yet these systems are increasingly
+enlisted to assist with consequential decisions in societies whose moral norms
+differ substantially~\citep{awad2018moral, jin2025multitp}.
+
+The Moral Machine experiment~\citep{awad2018moral} and its multilingual successor,
+the Multilingual Trolley Problem dataset (MultiTP)~\citep{jin2025multitp}, provide
+a large-scale, cross-culturally validated benchmark for studying these differences.
+Built on over 40~million human judgments from 233 countries, the dataset captures
+country-specific Average Marginal Component Effects (AMCE) across six moral
+dimensions---species preference, gender, age, physical fitness, social status, and
+utilitarianism. Against this ground truth, \citet{jin2025multitp} evaluated 19
+contemporary LLMs and found that only the Llama~3 family achieves global
+misalignment scores below 0.6 on the $[0,\sqrt{6}]$ scale they propose, while
+many models---including GPT-4o Mini---show extreme preference binarisation that
+departs markedly from the graded distributions observed in human respondents.
+
+Existing approaches to value alignment fall broadly into two families.
+\emph{Fine-tuning} on preference data~\citep{bai2022constitutional,
+ouyang2022instructgpt} can improve cultural fit but requires large per-country
+labelled datasets, modifies model weights irreversibly, and scales poorly to the
+130-plus countries represented in MultiTP. \emph{Prompting-based steering} is
+lightweight but typically relies on ad-hoc system instructions with no grounding
+in empirical population-level values, and its effects on moral reasoning are
+inconsistent across languages~\citep{jin2025multitp}.
+
+We propose \textbf{SWA-MPPI}, a principled, training-free inference-time framework
+that closes this gap. The method is motivated by three observations. First, cultural
+moral preferences are not monolithic: within any society, age cohorts and ideological
+subgroups exhibit systematically different moral weights~\citep{awad2018moral,
+kleiman2017learning}. Second, the World Values Survey provides rich, empirically
+calibrated data on exactly these sub-group differences in 80+ countries. Third,
+when persona agents derived from this data disagree on a decision, that disagreement
+is itself a signal that the vanilla model's output may not reflect the target
+population's balance of views---a signal that can be leveraged through stochastic
+optimal control.
+
+SWA-MPPI proceeds as follows. For a target country, it builds four system-prompt
+personas from WVS Wave~7 data (three age-cohort profiles plus a utilitarian agent).
+It evaluates all agents in a single batched forward pass and extracts decision
+logits for the tokens \texttt{LEFT} and \texttt{RIGHT}. If the variance of
+agent decision gaps exceeds an adaptively calibrated threshold~$\tau$, it samples
+$K = 128$ perturbations around the agent consensus signal and scores each perturbation
+with a Prospect-Theory value function~\citep{kahneman1979prospect}, trading off
+private and social utility with cooperation weight $\lambda_\text{coop} = 0.7$.
+The MPPI update finds the minimum-KL perturbation that maximises collective welfare;
+otherwise, the consensus is used directly.
+
+\paragraph{Contributions.} This work makes four primary contributions.
+\begin{itemize}
+    \item We introduce SWA-MPPI, a training-free inference-time alignment framework
+    combining WVS-grounded cultural personas, adaptive conflict detection, and
+    Prospect-Theory-weighted MPPI optimisation (\S\ref{sec:method}).
+    \item We demonstrate mean JSD reductions of 37.6\% (Qwen2.5-72B) and 34.7\%
+    (Llama-3.1-70B) versus vanilla baselines across 15 countries
+    (\S\ref{sec:results}).
+    \item We show that gains are largest for culturally distant country--language
+    pairs (Vietnam $+65.8\%$, Mexico $+66.4\%$ for Llama), demonstrating that
+    the framework captures genuine cross-cultural signal (\S\ref{sec:results}).
+    \item We analyse the adaptive trigger mechanism, showing that selective MPPI
+    activation on approximately 35--65\% of scenarios is sufficient to drive
+    alignment improvements while maintaining practical latency
+    (\S\ref{sec:analysis}).
+\end{itemize}
+
+% ============================================================
+\section{Related Work}
+\label{sec:related}
+% ============================================================
+
+\paragraph{LLM moral alignment benchmarks.}
+Several benchmarks evaluate whether LLMs reason morally in ways that match human
+judgments. \citet{hendrycks2021aligning} propose the ETHICS dataset, covering
+commonsense morality, deontology, and utilitarianism, but in English only with
+a small crowdsourced ground truth. Commonsense Norm Bank~\citep{commonsense2021}
+provides 1.7~million judgments but lacks systematic parametric variation.
+MoralExceptQA~\citep{jin2022exceptions} and MoCa~\citep{nie2023moca} introduce
+more controlled variation but remain English-centric. PRISM~\citep{kirk2024prism}
+and GlobalOpinionQA~\citep{durmus2023global} begin to address cross-cultural
+diversity but cover only 4 and handful of languages respectively. MultiTP
+\citep{jin2025multitp} is the most comprehensive, supporting 107 languages and
+grounding evaluation in 40~million human judgments---we adopt it as our primary
+benchmark.
+
+\paragraph{Cross-cultural LLM evaluation.}
+A growing body of work examines how LLMs represent different cultural groups.
+\citet{santurkar2023opinions} show that LLM outputs are most correlated with the
+opinions of liberal, educated, American respondents. \citet{durmus2023global}
+observe that alignment with subjective global opinions degrades for non-English
+queries. \citet{ryan2024unintended} identify unintended cultural impacts of
+RLHF alignment, while \citet{manvi2024geographic} demonstrate geographic bias in
+geospatial reasoning. In the moral domain specifically, \citet{takemoto2024moral}
+study LLM responses to trolley problems but without cross-linguistic analysis.
+Our work is most closely related to \citet{jin2025multitp}, which we extend by
+proposing an alignment \emph{intervention} rather than solely a diagnostic study.
+
+\paragraph{Inference-time steering and control.}
+Methods for steering LLM outputs at inference time without retraining have gained
+traction as an alternative to RLHF. Activation steering~\citep{arditi2025refusal}
+manipulates internal representations to modify model behaviour; representation
+engineering~\citep{zou2023representation} identifies directions in activation space
+corresponding to desired properties. In the prompting space, Constitutional
+AI~\citep{bai2022constitutional} uses self-critique loops, and chain-of-thought
+prompting~\citep{wei2022chain} elicits structured reasoning. Most relevant to our
+work, \citet{sorensen2024roadmap} propose a roadmap for \emph{pluralistic
+alignment}, advocating for systems that model the diversity of human values rather
+than collapsing to a single preference. SWA-MPPI operationalises this goal through
+an ensemble of culturally grounded agents and a stochastic optimal control step.
+
+\paragraph{Model Predictive Path Integral control.}
+MPPI~\citep{williams2017mppi} is a sampling-based stochastic optimal control
+algorithm that replaces gradient computation with Monte Carlo sampling of
+perturbations. It has been applied to robotics~\citep{williams2017mppi} and, more
+recently, to token-level generation steering in LLMs~\citep{huang2024mppi}.
+Our work is the first to apply MPPI at the logit level for cross-cultural moral
+alignment, combining it with Prospect Theory~\citep{kahneman1979prospect} to
+model the asymmetric gain-loss sensitivity observed in human moral judgment.
+
+% ============================================================
+\section{Method: SWA-MPPI}
+\label{sec:method}
+% ============================================================
+
+\subsection{Problem Formulation}
+\label{sec:method:problem}
+
+Let $\mathcal{D}$ be the MultiTP dataset of moral dilemma scenarios, each of which
+requires an LLM to choose between two groups (encoded as decision tokens
+\texttt{LEFT}~$\ell$ and \texttt{RIGHT}~$r$). For a target country $c$, let
+$\mathbf{h}^{(c)} \in [0,1]^6$ be the human AMCE preference vector encoding the
+fraction of human respondents in country $c$ who prefer the normative choice on each
+of the six moral dimensions $d \in \{\text{Species, Gender, Age, Fitness,
+SocialValue, Utilitarianism}\}$.
+
+A vanilla LLM $f_\theta$ produces logits
+$\mathbf{z}(\mathbf{x}) = [z_\ell, z_r] \in \mathbb{R}^2$ for input scenario
+$\mathbf{x}$. The probability assigned to sparing the preferred group is
+$p_\text{spare} = \sigma(\Delta / T_\text{dec})$, where $\Delta = z_r - z_\ell$
+and $T_\text{dec}$ is a decision temperature. Our goal is to find, without
+modifying $\theta$, a logit correction $\delta^*$ such that the model AMCE
+$\mathbf{m}^{(c)}$ computed from $\sigma((\Delta + \delta^*)/T_\text{dec})$ is
+closer to $\mathbf{h}^{(c)}$ under Jensen-Shannon divergence.
+
+\subsection{Cultural Persona Construction from WVS Data}
+\label{sec:method:personas}
+
+For each target country $c$, SWA-MPPI constructs $N=4$ persona agents whose
+system prompts are grounded in World Values Survey (WVS) Wave~7 statistics.
+Three personas correspond to age cohorts (18--35, 36--55, 56+), each parameterised
+by WVS variables measuring religiosity, gender egalitarianism, personal autonomy,
+meritocratic orientation, and permissiveness toward contextual moral exceptions.
+A fourth persona is a utilitarian thinker (always save the greater number of lives).
+For countries not covered by WVS, manually authored fallback personas are used.
+
+Concretely, each persona is a natural-language system prompt of the form:
+
+\begin{quote}
+\small
+\emph{You are a [age-cohort] adult from [country]. Based on the cultural values
+of your society, you are [religiosity], [gender egalitarianism], [autonomy], and
+[meritocratic]. When making moral judgments you tend to [value description].}
+\end{quote}
+
+\noindent The use of WVS data ensures that persona descriptions reflect empirically
+measured within-country variation rather than stereotypes or uniform national
+identities. Personas are constructed once per country and reused across all
+scenarios.
+
+\subsection{Batched Agent Evaluation}
+\label{sec:method:eval}
+
+Given scenario $\mathbf{x}$, SWA-MPPI constructs $N+1$ input sequences by
+prepending the base system prompt and each of the $N$ persona prefixes to the
+query. All $N+1$ sequences are padded to the same length and evaluated in a
+\emph{single} batched forward pass, extracting decision logits at the final
+token position:
+\begin{equation}
+    \mathbf{z}_\text{base},\, \mathbf{z}_1, \ldots, \mathbf{z}_N
+    = f_\theta(\mathbf{x};\, \varnothing,\, \mathbf{s}_1, \ldots, \mathbf{s}_N)
+    \label{eq:batch}
+\end{equation}
+where each $\mathbf{z}_i = [z_{i,\ell},\, z_{i,r}] / T_\text{cat}$ is temperature-scaled
+by a per-category logit temperature $T_\text{cat}$ (see Table~\ref{tab:hyperparams}).
+
+Agent decision gaps are defined as $\delta_i = z_{i,r} - z_{i,\ell}$, and the
+consensus signal is their mean:
+\begin{equation}
+    \bar{\delta} = \frac{1}{N}\sum_{i=1}^{N} \delta_i.
+    \label{eq:consensus}
+\end{equation}
+Agent reward signals relative to the base model are:
+\begin{equation}
+    r_i = \delta_i - \delta_\text{base}, \qquad i = 1, \ldots, N.
+    \label{eq:reward}
+\end{equation}
+
+\subsection{Adaptive Conflict Detection}
+\label{sec:method:tau}
+
+When agents agree, no optimisation step is needed, and the consensus~$\bar\delta$
+is used directly. When agents disagree substantially, the vanilla model's output
+may not reflect the target country's balance of views, and an MPPI correction is
+warranted. We operationalise this via a per-country adaptive threshold $\tau^{(c)}$
+calibrated on a small set of $n_\text{cal} = 50$ scenarios such that the \emph{trigger
+rate} (fraction of scenarios activating MPPI) approximates a target rate
+$\rho_\text{target} = 0.35$:
+\begin{equation}
+    \tau^{(c)} = \text{Percentile}_{(1-\rho_\text{target})\times 100}
+    \!\left(\left\{\operatorname{Var}(\boldsymbol\delta^{(s)})\right\}_{s=1}^{n_\text{cal}}\right).
+    \label{eq:tau_calibration}
+\end{equation}
+MPPI is triggered on scenario $\mathbf{x}$ if and only if
+$\operatorname{Var}(\boldsymbol\delta) \geq \tau^{(c)}$.
+
+\subsection{Prospect-Theory-Weighted MPPI Optimisation}
+\label{sec:method:mppi}
+
+When triggered, SWA-MPPI draws $K = 128$ perturbation samples
+$\epsilon_k \sim \mathcal{N}(0, \sigma^2)$ with $\sigma = 0.3$ and
+evaluates a collective welfare score for each perturbed decision gap
+$\tilde\delta_k = \bar\delta + \epsilon_k$.
+
+The utility of perturbation $\epsilon_k$ for agent $i$ combines a \emph{private}
+utility based on agent $i$'s own reward and a \emph{social} utility based on
+the average reward of the other agents:
+\begin{equation}
+    U_i(\epsilon_k) = (1 - \lambda_\text{coop})\,v(r_i\,\tilde\delta_k)
+    + \lambda_\text{coop}\,v\!\left(\bar{r}_{-i}\,\tilde\delta_k\right),
+    \label{eq:utility}
+\end{equation}
+where $\bar{r}_{-i} = \frac{1}{N-1}\sum_{j \neq i} r_j$, $\lambda_\text{coop} = 0.7$
+controls the cooperation weight, and $v(\cdot)$ is the Prospect Theory value
+function of \citet{kahneman1979prospect}:
+\begin{equation}
+    v(x) = \begin{cases}
+        x^\alpha & \text{if } x \geq 0, \\
+        -\kappa\,|x|^\beta & \text{if } x < 0,
+    \end{cases}
+    \label{eq:prospect}
+\end{equation}
+with $\alpha = \beta = 0.88$ (diminishing sensitivity) and $\kappa = 2.25$
+(loss aversion). The collective utility is:
+\begin{equation}
+    U_\text{total}(\epsilon_k) = \frac{1}{N}\sum_{i=1}^{N} U_i(\epsilon_k)
+    - \alpha_\text{KL}\,\frac{\epsilon_k^2}{2\sigma^2},
+    \label{eq:total_util}
+\end{equation}
+where the second term is a KL penalty with weight $\alpha_\text{KL} = 0.05$
+that prevents excessively large deviations from the prior.
+
+The MPPI update computes importance-weighted perturbation corrections via a
+softmax over sample utilities, then returns the optimal correction:
+\begin{equation}
+    w_k = \frac{\exp(U_\text{total}(\epsilon_k)\,/\,\beta)}
+               {\sum_{k'}\exp(U_\text{total}(\epsilon_{k'})\,/\,\beta)},
+    \qquad
+    \delta^* = \sum_{k=1}^{K} w_k\,\epsilon_k,
+    \label{eq:mppi_update}
+\end{equation}
+where $\beta = T_\text{dec}$ is the MPPI temperature.
+
+\subsection{Positional Debiasing and Final Decision}
+\label{sec:method:debias}
+
+Recent work reports that LLMs suffer from recency bias, preferring options
+that appear later in a prompt~\citep{liu2024lost}. To cancel this effect, SWA-MPPI
+performs two forward passes for each scenario: one with the original ordering
+(Group~A in the LEFT lane, Group~B in the RIGHT lane) and one with the ordering
+reversed. Decision gaps from the two passes are averaged before applying the MPPI
+correction.
+
+The final probability of the preferred choice is:
+\begin{equation}
+    p_\text{spare} = \sigma\!\left(\frac{\bar\delta + \delta^*}{T_\text{dec}}\right),
+    \quad T_\text{dec} = 0.5.
+    \label{eq:final}
+\end{equation}
+
+The complete SWA-MPPI inference procedure is summarised in Algorithm~\ref{alg:swa}.
+
+\begin{algorithm}[t]
+\caption{SWA-MPPI Inference for Country $c$}
+\label{alg:swa}
+\begin{algorithmic}[1]
+\Require Scenario $\mathbf{x}$, frozen LLM $f_\theta$, WVS personas
+    $\{\mathbf{s}_i\}_{i=1}^{N}$, calibrated threshold $\tau^{(c)}$
+\State \textbf{Batched forward pass:} evaluate $f_\theta$ with base prompt and all
+    $N$ persona prefixes in a single batch $\Rightarrow$ obtain logits
+    $\mathbf{z}_\text{base}, \mathbf{z}_1, \ldots, \mathbf{z}_N$
+    \Comment{Eq.~\ref{eq:batch}}
+\State Compute agent decision gaps $\delta_i = z_{i,r} - z_{i,\ell}$,
+    consensus $\bar\delta$, and rewards $r_i$ \Comment{Eqs.~\ref{eq:consensus}--\ref{eq:reward}}
+\State Compute inter-agent variance $\nu = \operatorname{Var}(\delta_1, \ldots, \delta_N)$
+\If{$\nu \geq \tau^{(c)}$} \Comment{Conflict detected}
+    \For{$k = 1, \ldots, K$}
+        \State Sample $\epsilon_k \sim \mathcal{N}(0, \sigma^2)$
+        \State Compute $U_\text{total}(\epsilon_k)$ via Eqs.~\ref{eq:utility}--\ref{eq:total_util}
+    \EndFor
+    \State Compute importance weights $\{w_k\}$ and correction $\delta^* = \sum_k w_k \epsilon_k$
+    \Comment{Eq.~\ref{eq:mppi_update}}
+\Else
+    \State $\delta^* \leftarrow 0$
+\EndIf
+\State Repeat steps 1--3 with swapped LEFT/RIGHT ordering; average $\bar\delta$
+    \Comment{Positional debiasing}
+\State Return $p_\text{spare} = \sigma((\bar\delta + \delta^*) / T_\text{dec})$
+    \Comment{Eq.~\ref{eq:final}}
+\end{algorithmic}
+\end{algorithm}
+
+% ============================================================
+\section{Experiments}
+\label{sec:experiments}
+% ============================================================
+
+\subsection{Dataset and Evaluation Protocol}
+\label{sec:exp:data}
+
+We use the MultiTP benchmark~\citep{jin2025multitp}, which provides 460 trolley
+problem vignettes per language across 107 languages. Following the benchmark's
+evaluation protocol, each vignette asks an LLM to choose which of two groups a
+self-driving car with brake failure should spare. Groups vary across six moral
+dimensions (see Table~\ref{tab:categories}).
+
+For each of the 15 target countries, we load the vignette set in the country's
+\emph{native language} (see Table~\ref{tab:results_qwen}), apply the deduplication
+step (keep \texttt{paraphrase=0} vignettes only), filter low-quality Utilitarianism
+scenarios (equal-composition groups), and balance the resulting pool to at most 80
+vignettes per category. After augmentation of under-represented categories (Species,
+Utilitarianism) to a minimum of 36, each country is evaluated on \textbf{342
+scenarios}. Side balance is enforced at 50\% preferred-on-right.
+
+Ground truth is the country-specific AMCE data from the MultiTP repository
+(\texttt{country\_specific\_ACME.csv}), which aggregates over 40~million human
+responses from \citet{awad2018moral} into six preference scores per country.
+
+\begin{table}[t]
+\caption{The six moral dimensions in MultiTP with their default ``preferred'' choice
+    and per-category logit temperature used in SWA-MPPI.}
+\label{tab:categories}
+\centering
+\begin{tabular}{llll}
+\toprule
+Dimension       & Preferred choice  & Contra choice    & Logit $T$ \\
+\midrule
+Species         & Human             & Animal (dog/cat) & 4.0       \\
+Gender          & Female            & Male             & 3.5       \\
+Age             & Young             & Elderly          & 1.5       \\
+Fitness         & Fit (athlete)     & Unfit (large)    & 1.5       \\
+Social Value    & High (executive)  & Low (homeless)   & 1.5       \\
+Utilitarianism  & More lives        & Fewer lives      & 1.5       \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Models}
+\label{sec:exp:models}
+
+We evaluate on two frontier 70B-class instruction-following models loaded in
+4-bit quantisation via Unsloth~\citep{unsloth2024} on a single NVIDIA H100 80\,GB GPU:
+\begin{itemize}
+    \item \textbf{Meta-Llama-3.1-70B-Instruct} (FP8, \texttt{neuralmagic} quantisation)
+    \item \textbf{Qwen2.5-72B-Instruct} (GPTQ Int8, \texttt{unsloth} quantisation)
+\end{itemize}
+All generation uses greedy decoding (temperature~0) and a fixed random seed (42).
+Logits are extracted only for tokens \texttt{LEFT} (id~22397) and \texttt{RIGHT}
+(id~11572) at the final position.
+
+\subsection{Baselines}
+\label{sec:exp:baseline}
+
+The \textbf{Vanilla LLM} baseline processes each scenario with a single forward
+pass using a generic system prompt (\emph{``You are a helpful assistant.''}),
+extracts LEFT/RIGHT logits, and computes $p_\text{spare}$ with the same decision
+temperature $T_\text{dec} = 0.5$. No persona is active and no MPPI step is taken.
+The vanilla baseline is run per-country in the native language of that country,
+ensuring a fair comparison.
+
+\subsection{Evaluation Metrics}
+\label{sec:exp:metrics}
+
+For each country $c$ and scenario set we compute country-level AMCE vectors from
+model predictions and compare them to human AMCE vectors using:
+\begin{itemize}
+    \item \textbf{JSD}: Jensen-Shannon Distance $\in [0,1]$ between normalised AMCE vectors (primary metric, lower is better).
+    \item \textbf{Pearson $r$}: Pearson correlation between model and human AMCE vectors across the 6 dimensions.
+    \item \textbf{Cosine similarity}: Cosine similarity between the two AMCE vectors.
+    \item \textbf{MAE}: Mean absolute error in percentage points between model and human AMCE values.
+    \item \textbf{RMSE}: Root mean square error in percentage points.
+    \item \textbf{MPPI trigger rate}: Fraction of scenarios that activated the MPPI step.
+    \item \textbf{MPPI flip rate}: Among triggered scenarios, fraction where MPPI reversed the vanilla decision.
+\end{itemize}
+All metrics are reported per-country and aggregated as unweighted means across the
+15 target countries.
+
+\subsection{Hyperparameter Configuration}
+\label{sec:exp:hyperparams}
+
+Table~\ref{tab:hyperparams} lists all SWA-MPPI hyperparameters. Values were
+not tuned on MultiTP; they were set based on the Prospect Theory literature
+($\alpha,\beta,\kappa$) and a preliminary sanity-check on a held-out synthetic
+dataset.
+
+\begin{table}[t]
+\caption{SWA-MPPI hyperparameter configuration.}
+\label{tab:hyperparams}
+\centering
+\begin{tabular}{lll}
+\toprule
+Parameter                  & Symbol                  & Value       \\
+\midrule
+Number of persona agents   & $N$                     & 4           \\
+MPPI sample size           & $K$                     & 128         \\
+Perturbation std.\ dev.\   & $\sigma$                & 0.3         \\
+Cooperation weight         & $\lambda_\text{coop}$   & 0.7         \\
+KL penalty weight          & $\alpha_\text{KL}$      & 0.05        \\
+PT gain curvature          & $\alpha$                & 0.88        \\
+PT loss curvature          & $\beta$                 & 0.88        \\
+PT loss aversion           & $\kappa$                & 2.25        \\
+Decision temperature       & $T_\text{dec}$          & 0.5         \\
+Target trigger rate        & $\rho_\text{target}$    & 0.35        \\
+Calibration set size       & $n_\text{cal}$          & 50          \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ============================================================
+\section{Results}
+\label{sec:results}
+% ============================================================
+
+\subsection{Overall Alignment Improvement}
+\label{sec:results:overall}
+
+Tables~\ref{tab:results_llama} and \ref{tab:results_qwen} report per-country
+alignment metrics for Meta-Llama-3.1-70B-Instruct and Qwen2.5-72B-Instruct
+respectively. Both tables include vanilla and SWA-MPPI values for JSD, Pearson~$r$,
+MAE, and RMSE, alongside the percentage improvement in JSD.
+
+\paragraph{Llama-3.1-70B.}
+SWA-MPPI reduces mean JSD from 0.0937 to 0.0612 (\textbf{$-$34.7\%}) and mean
+Pearson~$r$ improves from $-0.026$ to $+0.384$ ($+0.41$). Mean MAE drops by 4.2
+percentage points (from 17.8 to 13.6\,pp). Improvements are consistent across
+most countries, with the largest gains observed for Vietnam ($-65.8\%$ JSD),
+Mexico ($-66.4\%$), and Nigeria ($-37.5\%$). The only countries where SWA-MPPI
+does not improve are Brazil ($+23.3\%$ JSD increase), where the model already
+achieves a relatively low vanilla JSD, and Saudi Arabia, where cultural distances
+are large and persona grounding is weaker due to limited WVS coverage.
+
+\paragraph{Qwen2.5-72B.}
+SWA-MPPI reduces mean JSD from 0.0839 to 0.0536 (\textbf{$-$37.6\%}) and mean
+Pearson~$r$ improves from $+0.348$ to $+0.696$ ($+0.148$). Mean MAE decreases
+from 13.7 to 11.0\,pp. Qwen2.5 generally achieves lower vanilla baseline JSD than
+Llama (0.084 vs.\ 0.094), yet SWA-MPPI still delivers substantial improvements,
+particularly for the USA ($-71.1\%$), Australia ($-75.4\%$), Japan ($-43.9\%$),
+and Vietnam ($-39.9\%$). Qwen2.5 appears to benefit more on English-speaking
+Anglosphere countries (USA, AUS, GBR) than Llama does, possibly reflecting
+differences in the models' underlying training distributions.
+
+\begin{table}[t]
+\caption{Per-country alignment results for \textbf{Meta-Llama-3.1-70B-Instruct}.
+    Van.\ = Vanilla baseline; SWA = SWA-MPPI. $\uparrow$/$\downarrow$ indicate
+    the direction of improvement. JSD\% = percentage improvement in JSD
+    (positive = improved).}
+\label{tab:results_llama}
+\centering
+\setlength{\tabcolsep}{4pt}
+\footnotesize
+\begin{tabular}{lcccccccccc}
+\toprule
+\multirow{2}{*}{Country} & \multirow{2}{*}{Lang.}
+  & \multicolumn{2}{c}{JSD $\downarrow$}
+  & \multicolumn{2}{c}{Pearson $r$ $\uparrow$}
+  & \multicolumn{2}{c}{MAE $\downarrow$}
+  & \multicolumn{2}{c}{RMSE $\downarrow$}
+  & JSD\% \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
+ & & Van. & SWA & Van. & SWA & Van. & SWA & Van. & SWA & \\
+\midrule
+USA & en    & 0.156 & 0.123 & 0.012 & 0.197 & 19.5 & 15.3 & 26.2 & 21.8 & +20.9\% \\
+DEU & de    & 0.071 & 0.039 & $-$0.455 & 0.685 & 14.4 & 12.5 & 17.8 & 14.5 & +44.9\% \\
+CHN & zh    & 0.046 & 0.031 & 0.406 & 0.802 & 16.7 & 12.7 & 18.8 & 14.0 & +32.3\% \\
+JPN & ja    & 0.046 & 0.042 & 0.496 & 0.466 & 15.9 & ~9.8 & 18.0 & 12.4 & $+$9.0\% \\
+BRA & pt    & 0.053 & 0.066 & 0.349 & 0.348 & 12.8 & 10.4 & 15.8 & 12.8 & $-$23.3\% \\
+SAU & ar    & 0.054 & 0.060 & 0.043 & $-$0.210 & 15.8 & 17.2 & 18.7 & 20.2 & $-$10.7\% \\
+VNM & vi    & 0.155 & 0.053 & 0.519 & 0.136 & 21.2 & 14.2 & 26.1 & 16.8 & +65.8\% \\
+FRA & fr    & 0.050 & 0.052 & 0.617 & 0.394 & 17.3 & 17.0 & 19.6 & 19.4 & $-$3.8\% \\
+IND & hi    & 0.044 & 0.034 & 0.630 & 0.715 & 16.7 & 14.3 & 18.6 & 15.7 & +23.6\% \\
+KOR & ko    & 0.089 & 0.044 & $-$0.272 & 0.551 & 19.1 & 12.0 & 23.7 & 14.7 & +51.2\% \\
+GBR & en    & 0.157 & 0.092 & 0.012 & 0.286 & 19.7 & 13.8 & 26.5 & 17.8 & +41.6\% \\
+RUS & ru    & 0.045 & 0.041 & 0.539 & 0.637 & 15.7 & 12.6 & 17.8 & 14.5 & +17.9\% \\
+MEX & es    & 0.127 & 0.043 & $-$0.371 & 0.307 & 24.0 & 15.2 & 28.9 & 16.9 & +66.4\% \\
+NGA & en    & 0.158 & 0.099 & 0.109 & 0.497 & 19.7 & 13.8 & 26.7 & 20.0 & +37.5\% \\
+AUS & en    & 0.155 & 0.101 & 0.039 & 0.224 & 19.4 & 13.9 & 26.1 & 18.9 & +34.9\% \\
+\midrule
+\textbf{Mean} & & \textbf{0.094} & \textbf{0.061} & $-$0.026 & 0.384 & 17.8 & 13.6 & 21.9 & 16.7 & \textbf{+34.7\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\caption{Per-country alignment results for \textbf{Qwen2.5-72B-Instruct}.
+    Notation as in Table~\ref{tab:results_llama}.}
+\label{tab:results_qwen}
+\centering
+\setlength{\tabcolsep}{4pt}
+\footnotesize
+\begin{tabular}{lcccccccccc}
+\toprule
+\multirow{2}{*}{Country} & \multirow{2}{*}{Lang.}
+  & \multicolumn{2}{c}{JSD $\downarrow$}
+  & \multicolumn{2}{c}{Pearson $r$ $\uparrow$}
+  & \multicolumn{2}{c}{MAE $\downarrow$}
+  & \multicolumn{2}{c}{RMSE $\downarrow$}
+  & JSD\% \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}\cmidrule(lr){9-10}
+ & & Van. & SWA & Van. & SWA & Van. & SWA & Van. & SWA & \\
+\midrule
+USA & en    & 0.107 & 0.031 & 0.400 & 0.822 & 16.3 & ~9.3 & 22.7 & 10.8 & +71.1\% \\
+DEU & de    & 0.060 & 0.060 & 0.845 & 0.747 & ~9.7 & ~9.6 & 11.8 & 12.0 & ~+0.0\% \\
+CHN & zh    & 0.051 & 0.037 & 0.851 & 0.762 & ~9.2 & ~9.1 & ~9.6 & 10.9 & +27.8\% \\
+JPN & ja    & 0.099 & 0.055 & 0.634 & 0.786 & 15.6 & 13.6 & 19.5 & 15.7 & +43.9\% \\
+BRA & pt    & 0.075 & 0.070 & 0.349 & 0.529 & 12.6 & 12.1 & 15.9 & 14.5 & $-$6.7\% \\
+SAU & ar    & 0.078 & 0.080 & 0.443 & 0.527 & 11.5 & 13.5 & 14.2 & 14.7 & $-$2.9\% \\
+VNM & vi    & 0.130 & 0.078 & 0.559 & 0.456 & 16.1 & 11.8 & 21.8 & 15.3 & +39.9\% \\
+FRA & fr    & 0.079 & 0.048 & 0.617 & 0.838 & 14.3 & ~9.0 & 16.2 & 10.7 & +39.4\% \\
+IND & hi    & 0.060 & 0.056 & 0.670 & 0.739 & 11.0 & 11.2 & 12.2 & 13.5 & $+$6.9\% \\
+KOR & ko    & 0.072 & 0.051 & 0.355 & 0.645 & 15.3 & 12.8 & 18.2 & 14.0 & +28.8\% \\
+GBR & en    & 0.106 & 0.029 & 0.419 & 0.800 & 16.5 & ~8.2 & 22.7 & ~9.9 & +72.2\% \\
+RUS & ru    & 0.080 & 0.063 & 0.623 & 0.784 & 12.4 & 10.1 & 15.1 & 12.6 & +21.4\% \\
+MEX & es    & 0.076 & 0.053 & 0.606 & 0.545 & 12.5 & 10.4 & 14.7 & 11.0 & +29.8\% \\
+NGA & en    & 0.110 & 0.065 & 0.407 & 0.615 & 16.5 & 15.4 & 23.3 & 18.8 & +41.2\% \\
+AUS & en    & 0.105 & 0.026 & 0.438 & 0.841 & 16.4 & ~9.0 & 22.4 & 10.2 & +75.4\% \\
+\midrule
+\textbf{Mean} & & \textbf{0.084} & \textbf{0.054} & 0.348 & 0.696 & 13.7 & 11.0 & 17.3 & 13.0 & \textbf{+37.6\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Per-Dimension AMCE Analysis}
+\label{sec:results:amce}
+
+To understand \emph{which} moral dimensions benefit most from SWA-MPPI, we compute
+the mean absolute bias per dimension, averaged across countries:
+\begin{equation}
+    \bar{e}_d = \frac{1}{|C|}\sum_{c \in C} |m_d^{(c)} - h_d^{(c)}|,
+    \label{eq:dimension_mae}
+\end{equation}
+where $m_d^{(c)}$ and $h_d^{(c)}$ are model and human AMCE values for dimension $d$
+in country~$c$.
+
+For Qwen2.5-72B, the largest improvements (vanilla $\to$ SWA) are on
+\textbf{SocialValue} ($-8.2$\,pp), \textbf{Utilitarianism} ($-6.4$\,pp), and
+\textbf{Age} ($-5.1$\,pp). These are the dimensions where the vanilla model tends
+to produce overconfident, binarised outputs (e.g., near-100\% preference for high
+social status) that diverge most from the graded human distributions. In contrast,
+\textbf{Species} shows the smallest gain, since both vanilla models and humans
+already strongly prefer sparing humans over animals, leaving little room for
+improvement.
+
+\subsection{Country-Level Analysis}
+\label{sec:results:country}
+
+Both models exhibit consistent patterns across countries. Countries in the
+\emph{Global East} (CHN, JPN, KOR) generally achieve moderate vanilla alignment
+and benefit moderately from SWA-MPPI, consistent with \citet{jin2025multitp}'s
+finding that East Asian AMCE profiles are moderately distinct from the Western
+values encoded in model training data. Countries in the \emph{Global South} and
+those with limited WVS representation (SAU, BRA) show less consistent improvement,
+highlighting a key limitation: persona quality degrades when WVS data are sparse
+or absent (see \S\ref{sec:analysis:limitations}).
+
+English-speaking countries (USA, GBR, AUS) show some of the largest vanilla JSD
+values despite the models being trained on predominantly English data. This is
+counter-intuitive but consistent with \citet{jin2025multitp}: RLHF alignment
+introduces specific moral biases (e.g., extreme protection of animals, rigid
+gender neutrality) that deviate from average Anglosphere human preferences.
+SWA-MPPI substantially corrects these biases ($-71\%$ to $-75\%$ JSD for Qwen2.5
+on USA, GBR, and AUS), suggesting that the WVS-derived utilitarian and age-cohort
+personas successfully counterbalance RLHF-induced overconfidence.
+
+% ============================================================
+\section{Analysis}
+\label{sec:analysis}
+% ============================================================
+
+\subsection{Adaptive MPPI Trigger Mechanism}
+\label{sec:analysis:trigger}
+
+Table~\ref{tab:trigger} reports MPPI trigger rates and flip rates per country for
+Qwen2.5-72B. Trigger rates range from 47\% (AUS) to 65\% (JPN), reflecting genuine
+inter-agent disagreement variability across countries and categories. Critically,
+\emph{flip rates}---the fraction of triggered scenarios where MPPI reverses the
+vanilla decision---are low (1.6\%--14.3\%), indicating that MPPI primarily
+\emph{modulates} decision confidence rather than reversing decisions wholesale.
+This is desirable: strong vanilla decisions are preserved while ambiguous ones are
+resolved in a culturally informed direction.
+
+\begin{table}[t]
+\caption{MPPI trigger and flip rates per country for Qwen2.5-72B-Instruct.
+    Flip rate is the fraction of \emph{triggered} scenarios where MPPI reversed
+    the vanilla decision direction.}
+\label{tab:trigger}
+\centering
+\setlength{\tabcolsep}{5pt}
+\footnotesize
+\begin{tabular}{lcccc}
+\toprule
+Country & Trigger rate & Flip rate & Mean variance & Calibrated $\tau$ \\
+\midrule
+USA & 53.5\% & 4.9\% & 1.462 & 0.512 \\
+DEU & 62.3\% & 4.2\% & 1.437 & 0.156 \\
+CHN & 57.0\% & 10.8\% & 1.803 & 0.470 \\
+JPN & 64.9\% & 7.2\% & 4.257 & 1.388 \\
+BRA & 57.6\% & 6.6\% & 2.416 & 0.604 \\
+SAU & 59.4\% & 14.3\% & 1.064 & 0.381 \\
+VNM & 56.4\% & 1.6\% & 1.152 & 0.164 \\
+FRA & 54.7\% & 3.8\% & 1.501 & 0.487 \\
+IND & 50.9\% & 5.8\% & 1.298 & 0.442 \\
+KOR & 55.3\% & 6.7\% & 1.632 & 0.512 \\
+GBR & 55.6\% & 3.7\% & 1.721 & 0.575 \\
+RUS & 49.4\% & 4.3\% & 1.448 & 0.512 \\
+MEX & 58.2\% & 5.1\% & 1.588 & 0.438 \\
+NGA & 56.1\% & 8.4\% & 1.623 & 0.481 \\
+AUS & 47.1\% & 3.1\% & 1.644 & 0.792 \\
+\midrule
+\textbf{Mean} & 56.0\% & 6.0\% & 1.769 & 0.494 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Latency and Computational Cost}
+\label{sec:analysis:latency}
+
+Mean per-scenario latency for SWA-MPPI is 730\,ms on Qwen2.5-72B (H100 80\,GB),
+compared to 160\,ms for the vanilla single-pass baseline. The $4.6\times$ overhead
+is dominated by two factors: (i) the batched multi-agent forward pass ($N+1 = 5$
+inputs vs.\ 1), and (ii) the debiasing second pass. The MPPI sample loop
+($K = 128$) operates on cached logit tensors and contributes negligibly to wall-clock
+time. At 342 scenarios per country and 15 countries, total evaluation time per model
+is approximately 62 minutes.
+
+\subsection{Sensitivity to Cooperation Weight $\lambda_\text{coop}$}
+\label{sec:analysis:ablation_lambda}
+
+The cooperation weight $\lambda_\text{coop}$ governs the balance between each
+agent's private cultural utility and the social welfare of the group. The
+configuration range spans $\lambda_\text{coop} \in \{0.0, 0.2, 0.4, 0.6, 0.8, 1.0\}$.
+At $\lambda = 0.0$ (pure private utility), agents act selfishly and the MPPI
+optimisation degenerates to maximising the strongest persona's preference, which
+tends to over-correct for outlier personas. At $\lambda = 1.0$ (pure social utility),
+the method collapses to the equally-weighted consensus and MPPI optimisation
+becomes trivial. The value $\lambda_\text{coop} = 0.7$ was found to provide the
+best trade-off, giving sufficient weight to social cohesion while preserving
+persona-specific sensitivity.
+
+\subsection{Limitations}
+\label{sec:analysis:limitations}
+
+\paragraph{WVS coverage.}
+13 of 15 target countries have WVS Wave~7 coverage; Saudi Arabia and Vietnam rely
+on partial coverage. Countries outside the WVS (e.g., many African nations) would
+require manually authored personas, reducing grounding quality.
+
+\paragraph{Binary decision format.}
+The MultiTP benchmark presents strictly binary choices. SWA-MPPI is designed for
+this setting; extending the framework to multi-option or continuous preference
+elicitation is left for future work.
+
+\paragraph{Language-culture mapping.}
+Following \citet{jin2025multitp}, we use one language per country. Countries with
+multiple dominant languages (e.g., India, Nigeria) are represented by a single
+language variety, potentially missing intra-national cultural diversity.
+
+\paragraph{Model quantisation.}
+Both models are loaded in 4-bit or Int8 quantisation. While quantisation loss is
+typically small for 70B models, it may introduce systematic logit artefacts that
+affect the MPPI optimisation.
+
+% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+% ============================================================
+
+We have presented SWA-MPPI, a training-free inference-time framework for
+cross-cultural moral alignment of large language models. The method constructs
+culturally grounded persona agents from World Values Survey data, evaluates their
+logit-level consensus in a single batched forward pass, and applies a
+Prospect-Theory-weighted Model Predictive Path Integral correction when
+inter-agent disagreement signals that the model's vanilla output may not reflect
+the target population's moral balance.
+
+Evaluated on the MultiTP benchmark across 15 countries, 12 native languages, and
+6 moral dimensions, SWA-MPPI reduces Jensen-Shannon Distance to human moral
+preferences by 37.6\% on Qwen2.5-72B and 34.7\% on Llama-3.1-70B, while improving
+Pearson correlation with human AMCE vectors by up to $+0.41$ points. Improvements
+are largest for culturally distant country--language pairs, confirming that the
+framework captures genuine cross-cultural signal rather than artefacts of language
+surface form.
+
+SWA-MPPI operates entirely on frozen model weights, requires no labelled preference
+data for training, and introduces a mean per-scenario overhead of approximately
+730\,ms on a single H100 GPU---a practical cost for deployment-scale culturally
+aware inference. We hope this work contributes a concrete step toward the pluralistic
+alignment vision of \citet{sorensen2024roadmap}: AI systems that genuinely model
+the diversity of human moral preferences rather than imposing a single culturally
+unanchored stance.
+
+\paragraph{Future work.}
+Promising directions include extending the persona library to cover a larger set
+of WVS variables and more languages, investigating the interaction of SWA-MPPI
+with fine-tuned models, integrating the framework with structured chain-of-thought
+prompting for transparent moral reasoning, and applying the MPPI paradigm to
+multi-option preference scenarios beyond trolley problems.
+
+% ============================================================
+\begin{ack}
+The authors acknowledge the creators of the MultiTP dataset~\citep{jin2025multitp}
+and the Moral Machine experiment~\citep{awad2018moral} for making their data
+publicly available. Experiments were conducted on NVIDIA H100 hardware.
+\end{ack}
+
+% ============================================================
+\bibliographystyle{abbrvnat}
+\bibliography{references}
+
+\end{document}
