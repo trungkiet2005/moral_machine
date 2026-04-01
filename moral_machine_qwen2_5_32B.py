@@ -95,7 +95,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 @dataclass
 class SWAConfig:
     """All hyperparameters for the SWA-MPPI experiment (v3 — Paper-Ready)."""
-    model_name: str = "unsloth/Meta-Llama-3.1-70B-Instruct-bnb-4bit"
+    model_name: str = "unsloth/Qwen2.5-32B-Instruct-bnb-4bit"
     max_seq_length: int = 2048
     load_in_4bit: bool = True
 

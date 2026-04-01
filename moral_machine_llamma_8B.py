@@ -95,7 +95,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 @dataclass
 class SWAConfig:
     """All hyperparameters for the SWA-MPPI experiment (v3 — Paper-Ready)."""
-    model_name: str = "unsloth/Meta-Llama-3.1-70B-Instruct-bnb-4bit"
+    model_name: str = "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit"
     max_seq_length: int = 2048
     load_in_4bit: bool = True
 
@@ -3353,8 +3353,8 @@ def print_final_statistics(all_summaries, vanilla_metrics, config):
 # MAIN ENTRY POINT
 # ============================================================================
 def main():
-    from transformers import logging as ***REMOVED***
-    ***REMOVED***.set_verbosity_error()
+    import transformers
+    transformers.logging.set_verbosity_error()
     from unsloth import FastLanguageModel
 
     # Seed all RNGs for reproducibility
@@ -3645,9 +3645,8 @@ def debug_main():
     }
     # ────────────────────────────────────────────────────────────────────
 
-    import random as _rng2
-    from transformers import logging as ***REMOVED***
-    ***REMOVED***.set_verbosity_error()
+    import transformers, random as _rng2
+    transformers.logging.set_verbosity_error()
     from unsloth import FastLanguageModel
 
     _rng2.seed(SEED); np.random.seed(SEED); torch.manual_seed(SEED)
