@@ -95,7 +95,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 @dataclass
 class SWAConfig:
     """All hyperparameters for the SWA-MPPI experiment (v3 — Paper-Ready)."""
-    model_name: str = "unsloth/Meta-Llama-3.1-70B-Instruct-bnb-4bit"
+    model_name: str = "unsloth/Qwen2.5-72B-Instruct-bnb-4bit"
     max_seq_length: int = 2048
     load_in_4bit: bool = True
 
@@ -2472,7 +2472,7 @@ def run_baseline_vanilla(model, tokenizer, scenario_df, country, cfg):
 # ABLATION STUDY
 # ============================================================================
 def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
-    ablation_df = scenario_df.head(min(100, len(scenario_df)))
+    ablation_df = scenario_df.copy()
     print(f"\n[ABLATION] Running ablation studies on {country} ({len(ablation_df)} scenarios)")
     lang = _COUNTRY_LANG.get(country, "en")
     human_amce = load_human_amce(cfg.human_amce_path, country)
@@ -2535,113 +2535,213 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
         alignment = compute_alignment_metrics(model_amce, human_amce)
         return model_amce, alignment
 
+    _CRIT_LABELS = {
+        "Species_Humans":      "Species·Human",
+        "Age_Young":           "Age·Young",
+        "Fitness_Fit":         "Fitness·Fit",
+        "Gender_Female":       "Gender·Female",
+        "SocialValue_High":    "SocialVal·High",
+        "Utilitarianism_More": "Util·More",
+    }
+
+    def _print_cfg_result(tag, alignment, extra=None, model_amce=None):
+        """Print rich metrics table right after finishing one ablation config."""
+        jsd      = alignment.get("jsd",          np.nan)
+        pearson  = alignment.get("pearson_r",     np.nan)
+        spearman = alignment.get("spearman_rho",  np.nan)
+        cosine   = alignment.get("cosine_sim",    np.nan)
+        mae      = alignment.get("mae",           np.nan)
+        rmse     = alignment.get("rmse",          np.nan)
+        p_val    = alignment.get("pearson_p",     np.nan)
+
+        def _f4(x):  return f"{x:8.4f}" if not (isinstance(x,float) and np.isnan(x)) else "     nan"
+        def _f2(x):  return f"{x:7.2f}" if not (isinstance(x,float) and np.isnan(x)) else "    nan"
+
+        bar = "─" * 72
+        print(f"\n{bar}")
+        print(f"  [ABLATION DONE] {tag}")
+        print(f"  {'JSD':>8} {'Pearson r':>10} {'Spearman ρ':>11} {'Cosine':>8} {'MAE':>7} {'RMSE':>7} {'p-val':>8}")
+        print(f"  {_f4(jsd)} {_f4(pearson):>10} {_f4(spearman):>11} {_f4(cosine):>8} {_f2(mae):>7} {_f2(rmse):>7} {_f4(p_val):>8}")
+        if extra:
+            print(f"  extras: " + "  |  ".join(extra))
+
+        # Per-category AMCE breakdown
+        if model_amce and human_amce:
+            common = sorted(set(model_amce.keys()) & set(human_amce.keys()))
+            if common:
+                w = 15
+                print(f"\n  {'Criterion':<{w}} {'Model%':>8} {'Human%':>8} {'Δ (pp)':>8} {'Dir':>4}")
+                print(f"  {'-'*w} {'-'*8} {'-'*8} {'-'*8} {'-'*4}")
+                for k in common:
+                    m_v = model_amce[k]
+                    h_v = human_amce[k]
+                    delta = m_v - h_v
+                    arrow = "▲" if delta > 0 else ("▼" if delta < 0 else "═")
+                    label = _CRIT_LABELS.get(k, k[:w])
+                    print(f"  {label:<{w}} {m_v:8.1f} {h_v:8.1f} {delta:+8.1f} {arrow:>4}")
+        print(bar)
+
+    def _plot_radar_after_config(tag, model_amce_map, country, alignment,
+                                 output_dir, save_suffix=""):
+        """Draw and save a radar chart immediately after one ablation config."""
+        CRITERIA_LABELS = {
+            "Species_Humans":      "Sparing\nHumans",
+            "Age_Young":           "Sparing\nYoung",
+            "Fitness_Fit":         "Sparing\nFit",
+            "Gender_Female":       "Sparing\nFemales",
+            "SocialValue_High":    "Sparing\nHigher Status",
+            "Utilitarianism_More": "Sparing\nMore",
+        }
+        common_keys = sorted(set(model_amce_map.keys()) & set(human_amce.keys()))
+        if len(common_keys) < 3:
+            print(f"[WARN] Skipping radar for '{tag}': only {len(common_keys)} common criteria.")
+            return
+
+        labels  = [CRITERIA_LABELS.get(k, k.replace("_", "\n")) for k in common_keys]
+        m_vals  = [model_amce_map[k] for k in common_keys]
+        h_vals  = [human_amce[k]     for k in common_keys]
+        N       = len(common_keys)
+        angles  = [n / float(N) * 2 * pi for n in range(N)] + [0]
+        m_plot  = m_vals + [m_vals[0]]
+        h_plot  = h_vals + [h_vals[0]]
+
+        fig, ax = plt.subplots(figsize=(7, 7), subplot_kw={"polar": True})
+        ax.set_theta_offset(pi / 2); ax.set_theta_direction(-1)
+        ax.set_xticks(angles[:-1]); ax.set_xticklabels(labels, size=9)
+        ax.set_yticks([20, 40, 60, 80])
+        ax.set_yticklabels(["20%", "40%", "60%", "80%"], color="#666", size=8)
+        ax.set_ylim(0, 100)
+
+        ax.plot(angles, m_plot, "o-", lw=2.2, color="#2196F3", label=tag,  markersize=5)
+        ax.fill(angles, m_plot, alpha=0.15, color="#2196F3")
+        ax.plot(angles, h_plot, "s--", lw=2.0, color="#E53935", label=f"Human ({country})", markersize=5)
+        ax.fill(angles, h_plot, alpha=0.08, color="#E53935")
+        ax.plot(np.linspace(0, 2*pi, 100), [50]*100, ":", color="#999", lw=0.8, alpha=0.6)
+
+        jsd_s = f"JSD={alignment.get('jsd',0):.3f}"
+        r_s   = f"r={alignment.get('pearson_r',0):.3f}"
+        ρ_s   = f"ρ={alignment.get('spearman_rho',0):.3f}"
+        cos_s = f"cos={alignment.get('cosine_sim',0):.3f}"
+        mae_s = f"MAE={alignment.get('mae',0):.1f}pp"
+        ax.set_title(f"{country} — {tag}\n{jsd_s}  {r_s}  {ρ_s}  {cos_s}  {mae_s}",
+                     size=11, fontweight="bold", pad=22)
+        ax.legend(loc="upper right", bbox_to_anchor=(1.35, 1.15), fontsize=9,
+                  framealpha=0.9, edgecolor="#ccc")
+
+        safe_tag = tag.replace("/", "-").replace(" ", "_")
+        fname = os.path.join(output_dir,
+                             f"ablation_radar_{country}_{safe_tag}{save_suffix}.pdf")
+        plt.tight_layout()
+        plt.savefig(fname, bbox_inches="tight")
+        plt.savefig(fname.replace(".pdf", ".png"))
+        plt.show(); plt.close()
+        print(f"  [RADAR] Saved → {fname}")
+
     # =====================================================================
-    # PART A: HYPERPARAMETER SWEEPS (existing)
+    # PART A: HYPERPARAMETER SWEEPS (temporarily disabled)
     # =====================================================================
+    # NOTE: λ, K, τ, T_logit sweeps commented out to reduce runtime.
+    # Uncomment when ready to run full ablation.
 
-    # --- λ sweep ---
-    print("[ABLATION] Sweeping λ...")
-    for lam in tqdm(cfg.lambda_range, desc="λ sweep"):
-        ctrl = ImplicitSWAController(
-            model, tokenizer, personas,
-            **{**_base_kwargs, "lambda_coop": lam},
-        )
+    # # --- λ sweep ---
+    # print("[ABLATION] Sweeping λ...")
+    # for lam in tqdm(cfg.lambda_range, desc="λ sweep"):
+    #     ctrl = ImplicitSWAController(
+    #         model, tokenizer, personas,
+    #         **{**_base_kwargs, "lambda_coop": lam},
+    #     )
+    #     rows_out = _run_sweep_controller(ctrl, ablation_df)
+    #     _, alignment = _eval_alignment(rows_out)
+    #     results["lambda"].append({
+    #         "value": lam,
+    #         "jsd": alignment.get("jsd", np.nan),
+    #         "pearson_r": alignment.get("pearson_r", np.nan),
+    #         "mae": alignment.get("mae", np.nan),
+    #         "mean_variance": np.mean([r["variance"] for r in rows_out]),
+    #     })
+    #     del ctrl; torch.cuda.empty_cache()
 
-        rows_out = _run_sweep_controller(ctrl, ablation_df)
-        _, alignment = _eval_alignment(rows_out)
-        results["lambda"].append({
-            "value": lam,
-            "jsd": alignment.get("jsd", np.nan),
-            "pearson_r": alignment.get("pearson_r", np.nan),
-            "mae": alignment.get("mae", np.nan),
-            "mean_variance": np.mean([r["variance"] for r in rows_out]),
-        })
-        del ctrl; torch.cuda.empty_cache()
+    # # --- K sweep ---
+    # print("[ABLATION] Sweeping K...")
+    # for K in tqdm(cfg.K_range, desc="K sweep"):
+    #     ctrl = ImplicitSWAController(
+    #         model, tokenizer, personas,
+    #         **{**_base_kwargs, "K_samples": K},
+    #     )
+    #     latencies = []
+    #     rows_out = []
+    #     for _, row in ablation_df.iterrows():
+    #         prompt = row.get("Prompt", row.get("prompt", ""))
+    #         if not prompt: continue
+    #         pref_right = bool(row.get("preferred_on_right", 1))
+    #         cat = row.get("phenomenon_category", "default")
+    #         t0 = time.time()
+    #         pred = ctrl.predict(prompt,
+    #                             preferred_on_right=pref_right, phenomenon_category=cat,
+    #                             lang=lang)
+    #         latencies.append(time.time() - t0)
+    #         rows_out.append({
+    #             "phenomenon_category": row.get("phenomenon_category", "Unknown"),
+    #             "this_group_name": row.get("this_group_name", "Unknown"),
+    #             "n_left": int(row.get("n_left", 1)),
+    #             "n_right": int(row.get("n_right", 1)),
+    #             "preferred_on_right": int(pref_right),
+    #             "p_spare_preferred": pred["p_spare_preferred"],
+    #         })
+    #     temp_df = pd.DataFrame(rows_out)
+    #     model_amce = compute_amce_from_preferences(temp_df)
+    #     alignment = compute_alignment_metrics(model_amce, human_amce)
+    #     results["K"].append({
+    #         "value": K, "jsd": alignment.get("jsd", np.nan),
+    #         "pearson_r": alignment.get("pearson_r", np.nan),
+    #         "mean_latency_ms": np.mean(latencies) * 1000,
+    #     })
+    #     del ctrl; torch.cuda.empty_cache()
 
-    # --- K sweep ---
-    print("[ABLATION] Sweeping K...")
-    for K in tqdm(cfg.K_range, desc="K sweep"):
-        ctrl = ImplicitSWAController(
-            model, tokenizer, personas,
-            **{**_base_kwargs, "K_samples": K},
-        )
+    # # --- τ sweep ---
+    # print("[ABLATION] Sweeping τ...")
+    # for tau in tqdm(cfg.tau_range, desc="τ sweep"):
+    #     ctrl = ImplicitSWAController(
+    #         model, tokenizer, personas,
+    #         **{**_base_kwargs, "tau_conflict": tau},
+    #     )
+    #     trigger_count, total, latencies = 0, 0, []
+    #     for _, row in ablation_df.iterrows():
+    #         prompt = row.get("Prompt", row.get("prompt", ""))
+    #         if not prompt: continue
+    #         t0 = time.time()
+    #         pred = ctrl.predict(prompt,
+    #                             preferred_on_right=bool(row.get("preferred_on_right", 1)),
+    #                             phenomenon_category=row.get("phenomenon_category", "default"),
+    #                             lang=lang)
+    #         latencies.append(time.time() - t0)
+    #         trigger_count += int(pred["mppi_triggered"]); total += 1
+    #     results["tau"].append({
+    #         "value": tau,
+    #         "trigger_rate": trigger_count / max(1, total),
+    #         "mean_latency_ms": np.mean(latencies) * 1000,
+    #     })
+    #     del ctrl; torch.cuda.empty_cache()
 
-        latencies = []
-        rows_out = []
-        for _, row in ablation_df.iterrows():
-            prompt = row.get("Prompt", row.get("prompt", ""))
-            if not prompt: continue
-            pref_right = bool(row.get("preferred_on_right", 1))
-            cat = row.get("phenomenon_category", "default")
-            t0 = time.time()
-            pred = ctrl.predict(prompt,
-                                preferred_on_right=pref_right, phenomenon_category=cat,
-                                lang=lang)
-            latencies.append(time.time() - t0)
-            rows_out.append({
-                "phenomenon_category": row.get("phenomenon_category", "Unknown"),
-                "this_group_name": row.get("this_group_name", "Unknown"),
-                "n_left": int(row.get("n_left", 1)),
-                "n_right": int(row.get("n_right", 1)),
-                "preferred_on_right": int(pref_right),
-                "p_spare_preferred": pred["p_spare_preferred"],
-            })
-        temp_df = pd.DataFrame(rows_out)
-        model_amce = compute_amce_from_preferences(temp_df)
-        alignment = compute_alignment_metrics(model_amce, human_amce)
-        results["K"].append({
-            "value": K, "jsd": alignment.get("jsd", np.nan),
-            "pearson_r": alignment.get("pearson_r", np.nan),
-            "mean_latency_ms": np.mean(latencies) * 1000,
-        })
-        del ctrl; torch.cuda.empty_cache()
-
-    # --- τ sweep ---
-    print("[ABLATION] Sweeping τ...")
-    for tau in tqdm(cfg.tau_range, desc="τ sweep"):
-        ctrl = ImplicitSWAController(
-            model, tokenizer, personas,
-            **{**_base_kwargs, "tau_conflict": tau},
-        )
-
-        trigger_count, total, latencies = 0, 0, []
-        for _, row in ablation_df.iterrows():
-            prompt = row.get("Prompt", row.get("prompt", ""))
-            if not prompt: continue
-            t0 = time.time()
-            pred = ctrl.predict(prompt,
-                                preferred_on_right=bool(row.get("preferred_on_right", 1)),
-                                phenomenon_category=row.get("phenomenon_category", "default"),
-                                lang=lang)
-            latencies.append(time.time() - t0)
-            trigger_count += int(pred["mppi_triggered"]); total += 1
-        results["tau"].append({
-            "value": tau,
-            "trigger_rate": trigger_count / max(1, total),
-            "mean_latency_ms": np.mean(latencies) * 1000,
-        })
-        del ctrl; torch.cuda.empty_cache()
-
-    # --- logit_temperature sweep ---
-    print("[ABLATION] Sweeping T_logit...")
-    for lt in tqdm(cfg.logit_temp_range, desc="T_logit sweep"):
-        cat_temps = {k: lt * (v / 3.0) for k, v in cfg.category_logit_temperatures.items()}
-        ctrl = ImplicitSWAController(
-            model, tokenizer, personas,
-            **{**_base_kwargs, "logit_temperature": lt,
-               "category_logit_temperatures": cat_temps},
-        )
-
-        rows_out = _run_sweep_controller(ctrl, ablation_df)
-        _, alignment = _eval_alignment(rows_out)
-        results["logit_temperature"].append({
-            "value": lt,
-            "jsd": alignment.get("jsd", np.nan),
-            "pearson_r": alignment.get("pearson_r", np.nan),
-            "cosine_sim": alignment.get("cosine_sim", np.nan),
-            "mae": alignment.get("mae", np.nan),
-        })
-        del ctrl; torch.cuda.empty_cache()
+    # # --- logit_temperature sweep ---
+    # print("[ABLATION] Sweeping T_logit...")
+    # for lt in tqdm(cfg.logit_temp_range, desc="T_logit sweep"):
+    #     cat_temps = {k: lt * (v / 3.0) for k, v in cfg.category_logit_temperatures.items()}
+    #     ctrl = ImplicitSWAController(
+    #         model, tokenizer, personas,
+    #         **{**_base_kwargs, "logit_temperature": lt,
+    #            "category_logit_temperatures": cat_temps},
+    #     )
+    #     rows_out = _run_sweep_controller(ctrl, ablation_df)
+    #     _, alignment = _eval_alignment(rows_out)
+    #     results["logit_temperature"].append({
+    #         "value": lt,
+    #         "jsd": alignment.get("jsd", np.nan),
+    #         "pearson_r": alignment.get("pearson_r", np.nan),
+    #         "cosine_sim": alignment.get("cosine_sim", np.nan),
+    #         "mae": alignment.get("mae", np.nan),
+    #     })
+    #     del ctrl; torch.cuda.empty_cache()
 
     # =====================================================================
     # PART B: STRUCTURAL ABLATIONS
@@ -2664,21 +2764,34 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
 
     results["no_mppi_vs_full"] = {
         "no_mppi": {
-            "jsd": align_no_mppi.get("jsd", np.nan),
-            "pearson_r": align_no_mppi.get("pearson_r", np.nan),
-            "mae": align_no_mppi.get("mae", np.nan),
-            "cosine_sim": align_no_mppi.get("cosine_sim", np.nan),
+            "jsd":         align_no_mppi.get("jsd",         np.nan),
+            "pearson_r":   align_no_mppi.get("pearson_r",   np.nan),
+            "spearman_rho":align_no_mppi.get("spearman_rho",np.nan),
+            "cosine_sim":  align_no_mppi.get("cosine_sim",  np.nan),
+            "mae":         align_no_mppi.get("mae",         np.nan),
+            "rmse":        align_no_mppi.get("rmse",        np.nan),
             "amce": amce_no_mppi,
         },
         "full_swa_mppi": {
-            "jsd": align_full.get("jsd", np.nan),
-            "pearson_r": align_full.get("pearson_r", np.nan),
-            "mae": align_full.get("mae", np.nan),
-            "cosine_sim": align_full.get("cosine_sim", np.nan),
+            "jsd":         align_full.get("jsd",         np.nan),
+            "pearson_r":   align_full.get("pearson_r",   np.nan),
+            "spearman_rho":align_full.get("spearman_rho",np.nan),
+            "cosine_sim":  align_full.get("cosine_sim",  np.nan),
+            "mae":         align_full.get("mae",         np.nan),
+            "rmse":        align_full.get("rmse",        np.nan),
             "amce": amce_full,
             "trigger_rate": np.mean([r["mppi_triggered"] for r in rows_full]),
         },
     }
+    _print_cfg_result("1A no_mppi", align_no_mppi, model_amce=amce_no_mppi)
+    _plot_radar_after_config("1A_no_mppi", amce_no_mppi, country, align_no_mppi, cfg.output_dir)
+    _print_cfg_result(
+        "1B full_swa_mppi",
+        align_full,
+        extra=[f"trigger={results['no_mppi_vs_full']['full_swa_mppi']['trigger_rate']:.1%}"],
+        model_amce=amce_full,
+    )
+    _plot_radar_after_config("1B_full_swa_mppi", amce_full, country, align_full, cfg.output_dir)
 
     # --- Ablation 2: Always-on MPPI vs. adaptive triggering ---
     print("[ABLATION] 2/6 — Always-on MPPI vs. adaptive triggering...")
@@ -2739,18 +2852,43 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
         "always_mppi": {
             "jsd": align_always.get("jsd", np.nan),
             "pearson_r": align_always.get("pearson_r", np.nan),
+            "spearman_rho": align_always.get("spearman_rho", np.nan),
+            "cosine_sim": align_always.get("cosine_sim", np.nan),
             "mae": align_always.get("mae", np.nan),
+            "rmse": align_always.get("rmse", np.nan),
             "mean_latency_ms": np.mean(latencies_always) * 1000,
             "trigger_rate": 1.0,
+            "amce": amce_always,
         },
         "adaptive": {
             "jsd": align_adaptive.get("jsd", np.nan),
             "pearson_r": align_adaptive.get("pearson_r", np.nan),
+            "spearman_rho": align_adaptive.get("spearman_rho", np.nan),
+            "cosine_sim": align_adaptive.get("cosine_sim", np.nan),
             "mae": align_adaptive.get("mae", np.nan),
+            "rmse": align_adaptive.get("rmse", np.nan),
             "mean_latency_ms": np.mean(latencies_adaptive) * 1000,
             "trigger_rate": np.mean([r["mppi_triggered"] for r in rows_adaptive]),
+            "amce": amce_adaptive,
         },
     }
+    _print_cfg_result(
+        "2A always_mppi",
+        align_always,
+        extra=[f"latency={results['always_mppi_vs_adaptive']['always_mppi']['mean_latency_ms']:.1f}ms"],
+        model_amce=amce_always,
+    )
+    _plot_radar_after_config("2A_always_mppi", amce_always, country, align_always, cfg.output_dir)
+    _print_cfg_result(
+        "2B adaptive",
+        align_adaptive,
+        extra=[
+            f"latency={results['always_mppi_vs_adaptive']['adaptive']['mean_latency_ms']:.1f}ms",
+            f"trigger={results['always_mppi_vs_adaptive']['adaptive']['trigger_rate']:.1%}",
+        ],
+        model_amce=amce_adaptive,
+    )
+    _plot_radar_after_config("2B_adaptive", amce_adaptive, country, align_adaptive, cfg.output_dir)
 
     # --- Ablation 3: Prospect Theory vs. simpler utility functions ---
     print("[ABLATION] 3/6 — Utility function comparison (PT vs. quadratic vs. linear)...")
@@ -2760,52 +2898,60 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
             **{**_base_kwargs, "utility_fn": uf_name},
         )
         rows_uf = _run_sweep_controller(ctrl_uf, ablation_df)
-        _, align_uf = _eval_alignment(rows_uf)
+        amce_uf, align_uf = _eval_alignment(rows_uf)
         results["utility_function"].append({
             "utility": uf_name,
             "jsd": align_uf.get("jsd", np.nan),
             "pearson_r": align_uf.get("pearson_r", np.nan),
-            "mae": align_uf.get("mae", np.nan),
+            "spearman_rho": align_uf.get("spearman_rho", np.nan),
             "cosine_sim": align_uf.get("cosine_sim", np.nan),
+            "mae": align_uf.get("mae", np.nan),
+            "rmse": align_uf.get("rmse", np.nan),
+            "amce": amce_uf,
         })
+        _print_cfg_result(f"3 utility={uf_name}", align_uf, model_amce=amce_uf)
+        _plot_radar_after_config(f"3_utility_{uf_name}", amce_uf, country, align_uf, cfg.output_dir)
         del ctrl_uf; torch.cuda.empty_cache()
 
-    # --- Ablation 4a: decision_temperature sweep ---
-    print("[ABLATION] 4/6 — T_dec and T_cat sensitivity...")
-    for dt in tqdm(cfg.decision_temp_range, desc="T_dec sweep"):
-        ctrl_dt = ImplicitSWAController(
-            model, tokenizer, personas,
-            **{**_base_kwargs, "decision_temperature": dt},
-        )
-        rows_dt = _run_sweep_controller(ctrl_dt, ablation_df)
-        _, align_dt = _eval_alignment(rows_dt)
-        results["decision_temperature"].append({
-            "value": dt,
-            "jsd": align_dt.get("jsd", np.nan),
-            "pearson_r": align_dt.get("pearson_r", np.nan),
-            "mae": align_dt.get("mae", np.nan),
-        })
-        del ctrl_dt; torch.cuda.empty_cache()
+    # --- Ablation 4a: decision_temperature sweep (temporarily disabled) ---
+    # NOTE: T_dec sweep commented out to reduce runtime.
+    # print("[ABLATION] 4/6 — T_dec and T_cat sensitivity...")
+    # for dt in tqdm(cfg.decision_temp_range, desc="T_dec sweep"):
+    #     ctrl_dt = ImplicitSWAController(
+    #         model, tokenizer, personas,
+    #         **{**_base_kwargs, "decision_temperature": dt},
+    #     )
+    #     rows_dt = _run_sweep_controller(ctrl_dt, ablation_df)
+    #     _, align_dt = _eval_alignment(rows_dt)
+    #     results["decision_temperature"].append({
+    #         "value": dt,
+    #         "jsd": align_dt.get("jsd", np.nan),
+    #         "pearson_r": align_dt.get("pearson_r", np.nan),
+    #         "mae": align_dt.get("mae", np.nan),
+    #     })
+    #     del ctrl_dt; torch.cuda.empty_cache()
 
-    # --- Ablation 4b: per-category logit temperature sensitivity ---
-    for cat_name, default_temp in cfg.category_logit_temperatures.items():
-        for scale in cfg.category_temp_scales:
-            override_temps = dict(cfg.category_logit_temperatures)
-            override_temps[cat_name] = default_temp * scale
-            ctrl_ct = ImplicitSWAController(
-                model, tokenizer, personas,
-                **{**_base_kwargs, "category_logit_temperatures": override_temps},
-            )
-            rows_ct = _run_sweep_controller(ctrl_ct, ablation_df)
-            _, align_ct = _eval_alignment(rows_ct)
-            results["category_temperature"].append({
-                "category": cat_name,
-                "scale_factor": scale,
-                "effective_temp": default_temp * scale,
-                "jsd": align_ct.get("jsd", np.nan),
-                "pearson_r": align_ct.get("pearson_r", np.nan),
-            })
-            del ctrl_ct; torch.cuda.empty_cache()
+    # --- Ablation 4b: per-category logit temperature sensitivity (temporarily disabled) ---
+    # NOTE: T_cat sweep (6 cat × 3 scales = 18 runs) commented out to reduce runtime.
+    # for cat_name, default_temp in cfg.category_logit_temperatures.items():
+    #     for scale in cfg.category_temp_scales:
+    #         override_temps = dict(cfg.category_logit_temperatures)
+    #         override_temps[cat_name] = default_temp * scale
+    #         ctrl_ct = ImplicitSWAController(
+    #             model, tokenizer, personas,
+    #             **{**_base_kwargs, "category_logit_temperatures": override_temps},
+    #         )
+    #         rows_ct = _run_sweep_controller(ctrl_ct, ablation_df)
+    #         _, align_ct = _eval_alignment(rows_ct)
+    #         results["category_temperature"].append({
+    #             "category": cat_name,
+    #             "scale_factor": scale,
+    #             "effective_temp": default_temp * scale,
+    #             "jsd": align_ct.get("jsd", np.nan),
+    #             "pearson_r": align_ct.get("pearson_r", np.nan),
+    #         })
+    #         del ctrl_ct; torch.cuda.empty_cache()
+    print("[ABLATION] 4/6 — T_dec / T_cat sweeps skipped (disabled).")
 
     # --- Ablation 5: Removing the utilitarian persona ---
     print("[ABLATION] 5/6 — Removing utilitarian persona...")
@@ -2830,17 +2976,37 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
             "n_personas": len(personas),
             "jsd": align_all4.get("jsd", np.nan),
             "pearson_r": align_all4.get("pearson_r", np.nan),
+            "spearman_rho": align_all4.get("spearman_rho", np.nan),
+            "cosine_sim": align_all4.get("cosine_sim", np.nan),
             "mae": align_all4.get("mae", np.nan),
+            "rmse": align_all4.get("rmse", np.nan),
             "amce": amce_all4,
         },
         "without_utilitarian": {
             "n_personas": len(cultural_personas),
             "jsd": align_no_util.get("jsd", np.nan),
             "pearson_r": align_no_util.get("pearson_r", np.nan),
+            "spearman_rho": align_no_util.get("spearman_rho", np.nan),
+            "cosine_sim": align_no_util.get("cosine_sim", np.nan),
             "mae": align_no_util.get("mae", np.nan),
+            "rmse": align_no_util.get("rmse", np.nan),
             "amce": amce_no_util,
         },
     }
+    _print_cfg_result(
+        "5A with_utilitarian",
+        align_all4,
+        extra=[f"n={len(personas)}"],
+        model_amce=amce_all4,
+    )
+    _plot_radar_after_config("5A_with_utilitarian", amce_all4, country, align_all4, cfg.output_dir)
+    _print_cfg_result(
+        "5B without_utilitarian",
+        align_no_util,
+        extra=[f"n={len(cultural_personas)}"],
+        model_amce=amce_no_util,
+    )
+    _plot_radar_after_config("5B_without_utilitarian", amce_no_util, country, align_no_util, cfg.output_dir)
 
     # --- Ablation 6: Contribution of positional debiasing ---
     print("[ABLATION] 6/6 — Positional debiasing contribution...")
@@ -2903,21 +3069,251 @@ def run_ablation_study(model, tokenizer, country, personas, scenario_df, cfg):
         "single_pass": {
             "jsd": align_single.get("jsd", np.nan),
             "pearson_r": align_single.get("pearson_r", np.nan),
+            "spearman_rho": align_single.get("spearman_rho", np.nan),
+            "cosine_sim": align_single.get("cosine_sim", np.nan),
             "mae": align_single.get("mae", np.nan),
+            "rmse": align_single.get("rmse", np.nan),
             "mean_positional_bias": float(np.mean(positional_biases_single)) if positional_biases_single else np.nan,
             "median_positional_bias": float(np.median(positional_biases_single)) if positional_biases_single else np.nan,
+            "amce": amce_single,
         },
         "two_pass_debiased": {
             "jsd": align_debiased.get("jsd", np.nan),
             "pearson_r": align_debiased.get("pearson_r", np.nan),
+            "spearman_rho": align_debiased.get("spearman_rho", np.nan),
+            "cosine_sim": align_debiased.get("cosine_sim", np.nan),
             "mae": align_debiased.get("mae", np.nan),
+            "rmse": align_debiased.get("rmse", np.nan),
             "mean_positional_bias": float(np.mean(positional_biases_debiased)) if positional_biases_debiased else np.nan,
             "median_positional_bias": float(np.median(positional_biases_debiased)) if positional_biases_debiased else np.nan,
+            "amce": amce_debiased,
         },
     }
+    _print_cfg_result(
+        "6A single_pass",
+        align_single,
+        extra=[
+            f"pos_bias_mean={results['debiasing']['single_pass']['mean_positional_bias']:.4f}",
+            f"pos_bias_med={results['debiasing']['single_pass']['median_positional_bias']:.4f}",
+        ],
+        model_amce=amce_single,
+    )
+    _plot_radar_after_config("6A_single_pass", amce_single, country, align_single, cfg.output_dir)
+    _print_cfg_result(
+        "6B two_pass_debiased",
+        align_debiased,
+        extra=[
+            f"pos_bias_mean={results['debiasing']['two_pass_debiased']['mean_positional_bias']:.4f}",
+            f"pos_bias_med={results['debiasing']['two_pass_debiased']['median_positional_bias']:.4f}",
+        ],
+        model_amce=amce_debiased,
+    )
+    _plot_radar_after_config("6B_two_pass_debiased", amce_debiased, country, align_debiased, cfg.output_dir)
 
     print(f"[ABLATION] All ablation studies complete for {country}.")
     return results
+
+
+def print_ablation_summary(ablation_results, country):
+    """Pretty-print key ablation metrics to console (full detail for paper writing)."""
+    def _fmt(x, digits=4):
+        try:
+            if x is None or (isinstance(x, float) and np.isnan(x)):
+                return "nan"
+            return f"{float(x):.{digits}f}"
+        except Exception:
+            return str(x)
+
+    _CRIT_SHORT = {
+        "Species_Humans":      "Species",
+        "Age_Young":           "Age",
+        "Fitness_Fit":         "Fitness",
+        "Gender_Female":       "Gender",
+        "SocialValue_High":    "SocialVal",
+        "Utilitarianism_More": "Util",
+    }
+
+    def _amce_row(label, amce_dict, human_amce):
+        """Print one AMCE row for a config variant."""
+        common = sorted(set(amce_dict.keys()) & set(human_amce.keys()))
+        if not common:
+            return
+        parts = []
+        for k in common:
+            m_v = amce_dict[k]
+            h_v = human_amce.get(k, np.nan)
+            d   = m_v - h_v
+            parts.append(f"{_CRIT_SHORT.get(k,k[:8])}: {m_v:.0f}% (Δ{d:+.0f})")
+        print(f"    [{label}] " + "  |  ".join(parts))
+
+    def _metric_row(label, d):
+        jsd = _fmt(d.get("jsd"))
+        r   = _fmt(d.get("pearson_r"))
+        rho = _fmt(d.get("spearman_rho"))
+        cos = _fmt(d.get("cosine_sim"))
+        mae = _fmt(d.get("mae"), 2)
+        rmse= _fmt(d.get("rmse"), 2)
+        print(f"  {label:<26} JSD={jsd}  r={r}  ρ={rho}  cos={cos}  MAE={mae}  RMSE={rmse}")
+
+    print(f"\n{'='*80}")
+    print(f"  ABLATION SUMMARY — {country}")
+    print(f"{'='*80}")
+
+    # Collect human_amce once (load from first ablation that has it)
+    _human_amce_ref: Dict[str, float] = {}
+    for _blk in [ablation_results.get("no_mppi_vs_full", {}).get("full_swa_mppi", {}),
+                  ablation_results.get("no_mppi_vs_full", {}).get("no_mppi", {})]:
+        if _blk.get("amce"):
+            break  # human_amce not stored here; left for radar only
+
+    # ── SECTION 1 ──────────────────────────────────────────────────────────
+    nmp = ablation_results.get("no_mppi_vs_full", {})
+    if nmp:
+        no_mppi = nmp.get("no_mppi", {})
+        full    = nmp.get("full_swa_mppi", {})
+        print("\n[1] No-MPPI (Consensus Only)  vs  Full SWA-MPPI")
+        print(f"  {'Config':<26} {'JSD':>7} {'r':>7} {'ρ':>7} {'Cosine':>8} {'MAE':>7} {'RMSE':>7} {'Trigger':>8}")
+        print(f"  {'-'*26} {'-'*7} {'-'*7} {'-'*7} {'-'*8} {'-'*7} {'-'*7} {'-'*8}")
+        _metric_row("no_mppi", no_mppi)
+        tr = full.get("trigger_rate")
+        tstr = f"{tr:.1%}" if tr is not None else "—"
+        _metric_row(f"full_swa_mppi [trig={tstr}]", full)
+        # AMCE comparison
+        for lbl, blk in [("no_mppi", no_mppi), ("full_swa_mppi", full)]:
+            if blk.get("amce"):
+                _amce_row(lbl, blk["amce"], blk.get("amce", {}))  # Δ vs itself = 0; shown raw
+
+    # ── SECTION 2 ──────────────────────────────────────────────────────────
+    am = ablation_results.get("always_mppi_vs_adaptive", {})
+    if am:
+        always   = am.get("always_mppi", {})
+        adaptive = am.get("adaptive", {})
+        lat_a = always.get("mean_latency_ms", np.nan)
+        lat_d = adaptive.get("mean_latency_ms", np.nan)
+        tr_d  = adaptive.get("trigger_rate", np.nan)
+        print("\n[2] Always MPPI  vs  Adaptive Triggering")
+        print(f"  {'Config':<26} {'JSD':>7} {'r':>7} {'ρ':>7} {'Cosine':>8} {'MAE':>7} {'RMSE':>7} {'Latency':>9} {'Trigger':>8}")
+        print(f"  {'-'*26} {'-'*7} {'-'*7} {'-'*7} {'-'*8} {'-'*7} {'-'*7} {'-'*9} {'-'*8}")
+
+        def _metric_row2(label, d, lat, trig):
+            jsd = _fmt(d.get("jsd"))
+            r   = _fmt(d.get("pearson_r"))
+            rho = _fmt(d.get("spearman_rho"))
+            cos = _fmt(d.get("cosine_sim"))
+            mae = _fmt(d.get("mae"), 2)
+            rmse= _fmt(d.get("rmse"), 2)
+            lat_s = f"{lat:.0f}ms" if not np.isnan(lat) else "—"
+            tr_s  = f"{trig:.1%}" if not np.isnan(trig) else "—"
+            print(f"  {label:<26} {jsd:>7} {r:>7} {rho:>7} {cos:>8} {mae:>7} {rmse:>7} {lat_s:>9} {tr_s:>8}")
+
+        _metric_row2("always_mppi", always, lat_a, 1.0)
+        _metric_row2(f"adaptive", adaptive, lat_d, tr_d)
+        if always.get("amce") and adaptive.get("amce"):
+            print(f"  AMCE (always):  ", end="")
+            for k, v in sorted(always["amce"].items()):
+                print(f"{_CRIT_SHORT.get(k,k[:7])}={v:.0f}%", end="  ")
+            print()
+            print(f"  AMCE (adaptive):", end="")
+            for k, v in sorted(adaptive["amce"].items()):
+                print(f"{_CRIT_SHORT.get(k,k[:7])}={v:.0f}%", end="  ")
+            print()
+
+    # ── SECTION 3 ──────────────────────────────────────────────────────────
+    uf = ablation_results.get("utility_function", [])
+    if uf:
+        print("\n[3] Utility Function  (Prospect Theory vs Quadratic vs Linear)")
+        print(f"  {'Utility Fn':<18} {'JSD':>7} {'r':>7} {'ρ':>7} {'Cosine':>8} {'MAE':>7} {'RMSE':>7}")
+        print(f"  {'-'*18} {'-'*7} {'-'*7} {'-'*7} {'-'*8} {'-'*7} {'-'*7}")
+        for row in uf:
+            jsd  = _fmt(row.get("jsd"))
+            r    = _fmt(row.get("pearson_r"))
+            rho  = _fmt(row.get("spearman_rho"))
+            cos  = _fmt(row.get("cosine_sim"))
+            mae  = _fmt(row.get("mae"), 2)
+            rmse = _fmt(row.get("rmse"), 2)
+            name = row.get("utility", "unknown")
+            print(f"  {name:<18} {jsd:>7} {r:>7} {rho:>7} {cos:>8} {mae:>7} {rmse:>7}")
+        # Per-category AMCE for each utility fn
+        for row in uf:
+            if row.get("amce"):
+                parts = [f"{_CRIT_SHORT.get(k,k[:7])}={v:.0f}%" for k,v in sorted(row["amce"].items())]
+                print(f"  AMCE [{row.get('utility','?')}]: " + "  |  ".join(parts))
+
+    # ── SECTION 4 ──────────────────────────────────────────────────────────
+    nu = ablation_results.get("no_utilitarian", {})
+    if nu:
+        with_u = nu.get("with_utilitarian", {})
+        no_u   = nu.get("without_utilitarian", {})
+        print("\n[4] Utilitarian Persona Contribution")
+        print(f"  {'Config':<28} {'n':>3} {'JSD':>7} {'r':>7} {'ρ':>7} {'Cosine':>8} {'MAE':>7} {'RMSE':>7}")
+        print(f"  {'-'*28} {'-'*3} {'-'*7} {'-'*7} {'-'*7} {'-'*8} {'-'*7} {'-'*7}")
+        for lbl, blk in [("with_utilitarian", with_u), ("without_utilitarian", no_u)]:
+            n    = blk.get("n_personas", "?")
+            jsd  = _fmt(blk.get("jsd"))
+            r    = _fmt(blk.get("pearson_r"))
+            rho  = _fmt(blk.get("spearman_rho"))
+            cos  = _fmt(blk.get("cosine_sim"))
+            mae  = _fmt(blk.get("mae"), 2)
+            rmse = _fmt(blk.get("rmse"), 2)
+            print(f"  {lbl:<28} {n:>3} {jsd:>7} {r:>7} {rho:>7} {cos:>8} {mae:>7} {rmse:>7}")
+        # AMCE
+        if with_u.get("amce") and no_u.get("amce"):
+            ref = with_u["amce"]
+            alt = no_u["amce"]
+            common = sorted(set(ref.keys()) & set(alt.keys()))
+            print(f"\n  {'Criterion':<16} {'with_util%':>11} {'no_util%':>10} {'Δ (pp)':>8}")
+            print(f"  {'-'*16} {'-'*11} {'-'*10} {'-'*8}")
+            for k in common:
+                d = alt[k] - ref[k]
+                print(f"  {_CRIT_SHORT.get(k,k):<16} {ref[k]:>10.1f}% {alt[k]:>9.1f}% {d:>+8.1f}")
+
+    # ── SECTION 5 ──────────────────────────────────────────────────────────
+    db = ablation_results.get("debiasing", {})
+    if db:
+        single   = db.get("single_pass", {})
+        debiased = db.get("two_pass_debiased", {})
+        print("\n[5] Positional Debiasing  (Single-pass vs Two-pass)")
+        print(f"  {'Config':<24} {'JSD':>7} {'r':>7} {'ρ':>7} {'Cosine':>8} {'MAE':>7} {'RMSE':>7} {'PosBias(mean)':>14} {'PosBias(med)':>13}")
+        print(f"  {'-'*24} {'-'*7} {'-'*7} {'-'*7} {'-'*8} {'-'*7} {'-'*7} {'-'*14} {'-'*13}")
+        for lbl, blk in [("single_pass", single), ("two_pass_debiased", debiased)]:
+            jsd  = _fmt(blk.get("jsd"))
+            r    = _fmt(blk.get("pearson_r"))
+            rho  = _fmt(blk.get("spearman_rho"))
+            cos  = _fmt(blk.get("cosine_sim"))
+            mae  = _fmt(blk.get("mae"), 2)
+            rmse = _fmt(blk.get("rmse"), 2)
+            pb_m = _fmt(blk.get("mean_positional_bias"))
+            pb_d = _fmt(blk.get("median_positional_bias"))
+            print(f"  {lbl:<24} {jsd:>7} {r:>7} {rho:>7} {cos:>8} {mae:>7} {rmse:>7} {pb_m:>14} {pb_d:>13}")
+        # AMCE
+        if single.get("amce") and debiased.get("amce"):
+            ref = debiased["amce"]
+            alt = single["amce"]
+            common = sorted(set(ref.keys()) & set(alt.keys()))
+            print(f"\n  {'Criterion':<16} {'debiased%':>10} {'single%':>8} {'Δ (pp)':>8}  ← negative = debiasing helps")
+            print(f"  {'-'*16} {'-'*10} {'-'*8} {'-'*8}")
+            for k in common:
+                d = ref[k] - alt[k]
+                print(f"  {_CRIT_SHORT.get(k,k):<16} {ref[k]:>9.1f}% {alt[k]:>7.1f}% {d:>+8.1f}")
+
+    # ── SKIPPED SWEEPS ─────────────────────────────────────────────────────
+    skipped = []
+    if not ablation_results.get("lambda"):
+        skipped.append("lambda")
+    if not ablation_results.get("K"):
+        skipped.append("K")
+    if not ablation_results.get("tau"):
+        skipped.append("tau")
+    if not ablation_results.get("logit_temperature"):
+        skipped.append("logit_temperature")
+    if not ablation_results.get("decision_temperature"):
+        skipped.append("decision_temperature")
+    if not ablation_results.get("category_temperature"):
+        skipped.append("category_temperature")
+    if skipped:
+        print(f"\n[INFO] Skipped sweeps: {', '.join(skipped)}")
+
+    print(f"\n{'='*80}\n")
 
 
 
@@ -3125,76 +3521,236 @@ def plot_trigger_analysis(all_summaries, config, output_dir):
 
 
 def plot_ablation(ablation_results, country, config, output_dir):
-    fig, axes = plt.subplots(2, 2, figsize=(16, 11))
+    """
+    Figure 4a — hyper-parameter sweep plots (λ, K, τ, T_logit).
+    Figure 4b — structural ablation summary:
+        radar overlays + metric bar chart comparing all structural variants.
+    """
     color1, color2 = '#2196F3', '#E53935'
 
-    # (a) λ
+    # ── FIG 4a: sweep plots (unchanged layout, gracefully empty if disabled) ──
+    fig, axes = plt.subplots(2, 2, figsize=(16, 11))
+
+    # (a) λ sweep
     ax1 = axes[0, 0]
-    lam_vals = [d["value"] for d in ablation_results["lambda"]]
-    jsd_vals = [d["jsd"] for d in ablation_results["lambda"]]
-    pearson_vals = [d["pearson_r"] for d in ablation_results["lambda"]]
-    ln1 = ax1.plot(lam_vals, jsd_vals, 'o-', color=color1, linewidth=2.2, markersize=8, label='JSD')
-    ax1b = ax1.twinx()
-    ln2 = ax1b.plot(lam_vals, pearson_vals, 's--', color=color2, linewidth=2.0, markersize=8, label='Pearson r')
+    lam_data = ablation_results.get("lambda", [])
+    lam_vals     = [d["value"]     for d in lam_data]
+    jsd_vals     = [d["jsd"]       for d in lam_data]
+    pearson_vals = [d["pearson_r"] for d in lam_data]
     ax1.set_xlabel("λ (Cooperation Parameter)", fontsize=12)
-    ax1.set_ylabel("JSD", fontsize=12, color=color1); ax1.tick_params(axis='y', labelcolor=color1)
-    ax1b.set_ylabel("Pearson r", fontsize=12, color=color2); ax1b.tick_params(axis='y', labelcolor=color2)
-    lns = ln1 + ln2; ax1.legend(lns, [l.get_label() for l in lns], loc='center right', fontsize=10)
     ax1.set_title(f"(a) Effect of λ [{country}]", fontsize=13, fontweight='bold')
-    ax1.axvline(config.lambda_coop, color='gray', linestyle=':', alpha=0.5)
+    if lam_vals:
+        ln1 = ax1.plot(lam_vals, jsd_vals, 'o-', color=color1, lw=2.2, ms=8, label='JSD')
+        ax1b = ax1.twinx()
+        ln2 = ax1b.plot(lam_vals, pearson_vals, 's--', color=color2, lw=2.0, ms=8, label='Pearson r')
+        ax1.set_ylabel("JSD", fontsize=12, color=color1); ax1.tick_params(axis='y', labelcolor=color1)
+        ax1b.set_ylabel("Pearson r", fontsize=12, color=color2); ax1b.tick_params(axis='y', labelcolor=color2)
+        lns = ln1 + ln2; ax1.legend(lns, [l.get_label() for l in lns], loc='center right', fontsize=10)
+        ax1.axvline(config.lambda_coop, color='gray', ls=':', alpha=0.5)
+    else:
+        ax1.text(0.5, 0.5, "Sweep disabled / no data", ha='center', va='center',
+                 transform=ax1.transAxes, fontsize=11, color='#666666')
+        ax1.set_ylabel("JSD", fontsize=12)
 
-    # (b) K
+    # (b) K sweep
     ax2 = axes[0, 1]
-    k_vals = [d["value"] for d in ablation_results["K"]]
-    k_jsd = [d["jsd"] for d in ablation_results["K"]]
-    k_lat = [d["mean_latency_ms"] for d in ablation_results["K"]]
-    ln3 = ax2.plot(k_vals, k_jsd, 'o-', color=color1, linewidth=2.2, markersize=8, label='JSD')
-    ax2b = ax2.twinx()
-    ln4 = ax2b.plot(k_vals, k_lat, 's--', color='#FF9800', linewidth=2.0, markersize=8, label='Latency (ms)')
+    k_data = ablation_results.get("K", [])
+    k_vals = [d["value"] for d in k_data]
+    k_jsd  = [d["jsd"]   for d in k_data]
+    k_lat  = [d["mean_latency_ms"] for d in k_data]
     ax2.set_xlabel("K (MPPI Samples)", fontsize=12)
-    ax2.set_ylabel("JSD", fontsize=12, color=color1); ax2.tick_params(axis='y', labelcolor=color1)
-    ax2b.set_ylabel("Latency (ms)", fontsize=12, color='#FF9800'); ax2b.tick_params(axis='y', labelcolor='#FF9800')
-    lns2 = ln3 + ln4; ax2.legend(lns2, [l.get_label() for l in lns2], loc='center right', fontsize=10)
     ax2.set_title(f"(b) Effect of K [{country}]", fontsize=13, fontweight='bold')
-    ax2.set_xscale('log', base=2)
+    if k_vals and all(v > 0 for v in k_vals):
+        ln3 = ax2.plot(k_vals, k_jsd, 'o-', color=color1, lw=2.2, ms=8, label='JSD')
+        ax2b = ax2.twinx()
+        ln4 = ax2b.plot(k_vals, k_lat, 's--', color='#FF9800', lw=2.0, ms=8, label='Latency (ms)')
+        ax2.set_ylabel("JSD", fontsize=12, color=color1); ax2.tick_params(axis='y', labelcolor=color1)
+        ax2b.set_ylabel("Latency (ms)", fontsize=12, color='#FF9800'); ax2b.tick_params(axis='y', labelcolor='#FF9800')
+        lns2 = ln3 + ln4; ax2.legend(lns2, [l.get_label() for l in lns2], loc='center right', fontsize=10)
+        ax2.set_xscale('log', base=2)
+    else:
+        ax2.text(0.5, 0.5, "Sweep disabled / no data", ha='center', va='center',
+                 transform=ax2.transAxes, fontsize=11, color='#666666')
+        ax2.set_ylabel("JSD", fontsize=12)
 
-    # (c) τ
+    # (c) τ sweep
     ax3 = axes[1, 0]
-    tau_vals = [d["value"] for d in ablation_results["tau"]]
-    tau_trigger = [d["trigger_rate"] for d in ablation_results["tau"]]
-    tau_lat = [d["mean_latency_ms"] for d in ablation_results["tau"]]
-    ln5 = ax3.plot(tau_vals, tau_trigger, 'o-', color='#4CAF50', linewidth=2.2, markersize=8, label='Trigger Rate')
-    ax3b = ax3.twinx()
-    ln6 = ax3b.plot(tau_vals, tau_lat, 's--', color='#FF9800', linewidth=2.0, markersize=8, label='Latency (ms)')
+    tau_data    = ablation_results.get("tau", [])
+    tau_vals    = [d["value"]           for d in tau_data]
+    tau_trigger = [d["trigger_rate"]    for d in tau_data]
+    tau_lat     = [d["mean_latency_ms"] for d in tau_data]
     ax3.set_xlabel("τ (Conflict Threshold)", fontsize=12)
-    ax3.set_ylabel("MPPI Trigger Rate", fontsize=12, color='#4CAF50'); ax3.tick_params(axis='y', labelcolor='#4CAF50')
-    ax3b.set_ylabel("Latency (ms)", fontsize=12, color='#FF9800'); ax3b.tick_params(axis='y', labelcolor='#FF9800')
-    lns3 = ln5 + ln6; ax3.legend(lns3, [l.get_label() for l in lns3], loc='center right', fontsize=10)
     ax3.set_title(f"(c) Effect of τ [{country}]", fontsize=13, fontweight='bold')
-    ax3.set_xscale('log')
+    if tau_vals and all(v > 0 for v in tau_vals):
+        ln5 = ax3.plot(tau_vals, tau_trigger, 'o-', color='#4CAF50', lw=2.2, ms=8, label='Trigger Rate')
+        ax3b = ax3.twinx()
+        ln6 = ax3b.plot(tau_vals, tau_lat, 's--', color='#FF9800', lw=2.0, ms=8, label='Latency (ms)')
+        ax3.set_ylabel("MPPI Trigger Rate", fontsize=12, color='#4CAF50'); ax3.tick_params(axis='y', labelcolor='#4CAF50')
+        ax3b.set_ylabel("Latency (ms)", fontsize=12, color='#FF9800'); ax3b.tick_params(axis='y', labelcolor='#FF9800')
+        lns3 = ln5 + ln6; ax3.legend(lns3, [l.get_label() for l in lns3], loc='center right', fontsize=10)
+        ax3.set_xscale('log')
+    else:
+        ax3.text(0.5, 0.5, "Sweep disabled / no data", ha='center', va='center',
+                 transform=ax3.transAxes, fontsize=11, color='#666666')
+        ax3.set_ylabel("MPPI Trigger Rate", fontsize=12)
 
-    # (d) T_logit
+    # (d) T_logit sweep
     ax4 = axes[1, 1]
     lt_data = ablation_results.get("logit_temperature", [])
     if lt_data:
-        lt_vals = [d["value"] for d in lt_data]
-        lt_jsd = [d["jsd"] for d in lt_data]
+        lt_vals   = [d["value"]      for d in lt_data]
+        lt_jsd    = [d["jsd"]        for d in lt_data]
         lt_cosine = [d["cosine_sim"] for d in lt_data]
-        ln7 = ax4.plot(lt_vals, lt_jsd, 'o-', color=color1, linewidth=2.2, markersize=8, label='JSD')
+        ln7 = ax4.plot(lt_vals, lt_jsd, 'o-', color=color1, lw=2.2, ms=8, label='JSD')
         ax4b = ax4.twinx()
-        ln8 = ax4b.plot(lt_vals, lt_cosine, 's--', color='#4CAF50', linewidth=2.0, markersize=8, label='Cosine Sim')
+        ln8 = ax4b.plot(lt_vals, lt_cosine, 's--', color='#4CAF50', lw=2.0, ms=8, label='Cosine Sim')
         ax4.set_ylabel("JSD", fontsize=12, color=color1); ax4.tick_params(axis='y', labelcolor=color1)
         ax4b.set_ylabel("Cosine Sim", fontsize=12, color='#4CAF50'); ax4b.tick_params(axis='y', labelcolor='#4CAF50')
         lns4 = ln7 + ln8; ax4.legend(lns4, [l.get_label() for l in lns4], loc='center right', fontsize=10)
-        ax4.axvline(config.logit_temperature, color='gray', linestyle=':', alpha=0.5)
+        ax4.axvline(config.logit_temperature, color='gray', ls=':', alpha=0.5)
+    else:
+        ax4.text(0.5, 0.5, "Sweep disabled / no data", ha='center', va='center',
+                 transform=ax4.transAxes, fontsize=11, color='#666666')
     ax4.set_xlabel("T_logit (Global Logit Temperature)", fontsize=12)
     ax4.set_title(f"(d) Effect of T_logit [{country}]", fontsize=13, fontweight='bold')
 
     plt.tight_layout()
-    path = os.path.join(output_dir, "fig4_ablation_studies.pdf")
-    plt.savefig(path, bbox_inches='tight'); plt.savefig(path.replace('.pdf', '.png'))
+    path4a = os.path.join(output_dir, "fig4_ablation_studies.pdf")
+    plt.savefig(path4a, bbox_inches='tight'); plt.savefig(path4a.replace('.pdf', '.png'))
     plt.show(); plt.close()
-    print(f"[FIG 4] Saved -> {path}")
+    print(f"[FIG 4a] Saved -> {path4a}")
+
+    # ── FIG 4b: structural ablation — radar overlays + metric bars ─────────
+    CRITERIA_KEYS = [
+        "Species_Humans", "Gender_Female", "Age_Young",
+        "Fitness_Fit", "SocialValue_High", "Utilitarianism_More",
+    ]
+    CRITERIA_LABELS = [
+        "Sparing\nHumans", "Sparing\nFemales", "Sparing\nYoung",
+        "Sparing\nFit",    "Sparing\nHigher\nStatus", "Sparing\nMore",
+    ]
+    PALETTE = ["#2196F3", "#E53935", "#4CAF50", "#FF9800",
+               "#9C27B0", "#00BCD4", "#FF5722", "#607D8B", "#795548"]
+
+    # Collect all structural variant configs with their AMCE
+    struct_variants: List[Tuple[str, Dict, Dict]] = []  # (label, metrics_dict, amce_dict)
+
+    nmp = ablation_results.get("no_mppi_vs_full", {})
+    if nmp.get("no_mppi", {}).get("amce"):
+        struct_variants.append(("no_mppi",       nmp["no_mppi"],       nmp["no_mppi"]["amce"]))
+    if nmp.get("full_swa_mppi", {}).get("amce"):
+        struct_variants.append(("full_SWA-MPPI",  nmp["full_swa_mppi"], nmp["full_swa_mppi"]["amce"]))
+
+    am = ablation_results.get("always_mppi_vs_adaptive", {})
+    if am.get("always_mppi", {}).get("amce"):
+        struct_variants.append(("always_MPPI",   am["always_mppi"],   am["always_mppi"]["amce"]))
+    if am.get("adaptive", {}).get("amce"):
+        struct_variants.append(("adaptive_trig",  am["adaptive"],       am["adaptive"]["amce"]))
+
+    for uf_entry in ablation_results.get("utility_function", []):
+        if uf_entry.get("amce"):
+            struct_variants.append((f"util_{uf_entry['utility']}", uf_entry, uf_entry["amce"]))
+
+    nu = ablation_results.get("no_utilitarian", {})
+    if nu.get("with_utilitarian", {}).get("amce"):
+        struct_variants.append(("w/_util_persona",  nu["with_utilitarian"],  nu["with_utilitarian"]["amce"]))
+    if nu.get("without_utilitarian", {}).get("amce"):
+        struct_variants.append(("w/o_util_persona", nu["without_utilitarian"], nu["without_utilitarian"]["amce"]))
+
+    db = ablation_results.get("debiasing", {})
+    if db.get("single_pass", {}).get("amce"):
+        struct_variants.append(("single_pass",     db["single_pass"],     db["single_pass"]["amce"]))
+    if db.get("two_pass_debiased", {}).get("amce"):
+        struct_variants.append(("two_pass_debias", db["two_pass_debiased"], db["two_pass_debiased"]["amce"]))
+
+    if not struct_variants:
+        print("[FIG 4b] No AMCE data found in structural ablations — skipping.")
+        return
+
+    N_crit = len(CRITERIA_KEYS)
+    angles  = [n / float(N_crit) * 2 * pi for n in range(N_crit)] + [0]
+
+    # Layout: left=radar overlay, right=metric bar chart
+    fig4b = plt.figure(figsize=(20, 9))
+    gs4b  = gridspec.GridSpec(1, 2, width_ratios=[1.1, 1], wspace=0.35, figure=fig4b)
+    ax_radar = fig4b.add_subplot(gs4b[0], polar=True)
+    ax_bar   = fig4b.add_subplot(gs4b[1])
+
+    # ── Radar overlay ──────────────────────────────────────────────────────
+    ax_radar.set_theta_offset(pi / 2); ax_radar.set_theta_direction(-1)
+    ax_radar.set_xticks(angles[:-1])
+    ax_radar.set_xticklabels(CRITERIA_LABELS, size=9, color="#333")
+    ax_radar.set_yticks([20, 40, 60, 80])
+    ax_radar.set_yticklabels(["20%","40%","60%","80%"], color="#666", size=8)
+    ax_radar.set_ylim(0, 100)
+    ax_radar.plot(np.linspace(0, 2*pi, 100), [50]*100, ":", color="#aaa", lw=0.8, alpha=0.7)
+
+    for idx, (label, _metrics, amce_map) in enumerate(struct_variants):
+        vals = [amce_map.get(k, np.nan) for k in CRITERIA_KEYS]
+        # Skip if any NaN
+        if any(np.isnan(v) for v in vals): continue
+        plot_vals = vals + [vals[0]]
+        col = PALETTE[idx % len(PALETTE)]
+        ls  = "-" if idx % 2 == 0 else "--"
+        ax_radar.plot(angles, plot_vals, ls, lw=2.0, color=col,
+                      label=label, markersize=4, marker="o")
+        ax_radar.fill(angles, plot_vals, alpha=0.06, color=col)
+
+    ax_radar.legend(loc="upper right", bbox_to_anchor=(1.55, 1.18),
+                    fontsize=8.5, framealpha=0.92, edgecolor="#ccc",
+                    title="Ablation Variant", title_fontsize=9)
+    ax_radar.set_title(f"(a) AMCE Radar — All Structural Ablations [{country}]",
+                       fontsize=12, fontweight="bold", pad=20)
+
+    # ── Metric bar chart: JSD / Pearson r / MAE ───────────────────────────
+    n_var  = len(struct_variants)
+    x_pos  = np.arange(n_var)
+    labels_bar = [sv[0] for sv in struct_variants]
+    jsd_bar    = [sv[1].get("jsd",       np.nan) for sv in struct_variants]
+    r_bar      = [sv[1].get("pearson_r", np.nan) for sv in struct_variants]
+    mae_bar    = [sv[1].get("mae",        np.nan) for sv in struct_variants]
+
+    width = 0.25
+    b1 = ax_bar.bar(x_pos - width, jsd_bar, width, label="JSD ↓",      color="#2196F3", alpha=0.85, edgecolor="white")
+    b2 = ax_bar.bar(x_pos,         r_bar,   width, label="Pearson r ↑", color="#4CAF50", alpha=0.85, edgecolor="white")
+    b3 = ax_bar.bar(x_pos + width, [m / 100.0 if not np.isnan(m) else np.nan for m in mae_bar],
+                    width, label="MAE/100 ↓", color="#E53935", alpha=0.85, edgecolor="white")
+
+    # Annotate bar tops
+    for bars, vals in [(b1, jsd_bar), (b2, r_bar),
+                       (b3, [m/100. if not np.isnan(m) else np.nan for m in mae_bar])]:
+        for bar, v in zip(bars, vals):
+            if not np.isnan(v):
+                ax_bar.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.005,
+                            f"{v:.3f}", ha="center", va="bottom", fontsize=7, rotation=90)
+
+    ax_bar.set_xticks(x_pos)
+    ax_bar.set_xticklabels(labels_bar, rotation=40, ha="right", fontsize=8.5)
+    ax_bar.set_ylabel("Metric Value", fontsize=11)
+    ax_bar.set_title(f"(b) Alignment Metrics per Ablation Variant [{country}]",
+                     fontsize=12, fontweight="bold")
+    ax_bar.legend(fontsize=9, loc="upper right")
+    ax_bar.axhline(0, color="#aaa", lw=0.8)
+
+    # Grey bands to separate ablation groups
+    group_bounds = []
+    prev = ""
+    for i, (lbl, _, _) in enumerate(struct_variants):
+        grp = lbl.split("_")[0]
+        if grp != prev:
+            group_bounds.append(i)
+            prev = grp
+    for gb in group_bounds[1:]:
+        ax_bar.axvline(gb - 0.5, color="#ccc", lw=1.2, ls="--", alpha=0.7)
+
+    fig4b.suptitle(f"Figure 4: Structural Ablation Study — {country}",
+                   fontsize=14, fontweight="bold", y=1.01)
+    plt.tight_layout()
+    path4b = os.path.join(output_dir, "fig4b_ablation_structural.pdf")
+    fig4b.savefig(path4b, bbox_inches="tight")
+    fig4b.savefig(path4b.replace(".pdf", ".png"))
+    plt.show(); plt.close()
+    print(f"[FIG 4b] Saved -> {path4b}")
 
 
 def plot_amce_comparison_bar(all_summaries, output_dir):
@@ -3681,8 +4237,8 @@ def print_final_statistics(all_summaries, vanilla_metrics, config):
 # MAIN ENTRY POINT
 # ============================================================================
 def main():
-    from transformers import logging as ***REMOVED***
-    ***REMOVED***.set_verbosity_error()
+    from transformers import logging as hf_logging
+    hf_logging.set_verbosity_error()
     from unsloth import FastLanguageModel
 
     # Seed all RNGs for reproducibility
@@ -3974,8 +4530,8 @@ def debug_main():
     # ────────────────────────────────────────────────────────────────────
 
     import random as _rng2
-    from transformers import logging as ***REMOVED***
-    ***REMOVED***.set_verbosity_error()
+    from transformers import logging as hf_logging
+    hf_logging.set_verbosity_error()
     from unsloth import FastLanguageModel
 
     _rng2.seed(SEED); np.random.seed(SEED); torch.manual_seed(SEED)
@@ -4158,6 +4714,98 @@ def debug_main():
     print("\n[DONE] Debug session complete.")
 
 
+def ablation_main():
+    """
+    Standalone ablation entry point — loads model once, runs structural
+    ablations on a single country (ABLATION_COUNTRY) without needing
+    the full 15-country experiment to run first.
+
+    Edit ABLATION_COUNTRY below, then run:
+        python swa_mppi_ablation.py  (with ablation_main() active)
+    """
+    from transformers import logging as hf_logging
+    hf_logging.set_verbosity_error()
+    from unsloth import FastLanguageModel
+
+    # ── Config ──────────────────────────────────────────────────────────
+    ABLATION_COUNTRY = "USA"   # ← change to any supported ISO (DEU, CHN, VNM, …)
+    # ────────────────────────────────────────────────────────────────────
+
+    import random as _rng2
+    _rng2.seed(42); np.random.seed(42); torch.manual_seed(42)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(42)
+
+    cfg = SWAConfig()
+    os.makedirs(cfg.output_dir, exist_ok=True)
+
+    # Verify required paths
+    if not os.path.exists(cfg.human_amce_path):
+        raise FileNotFoundError(f"Human AMCE file not found: {cfg.human_amce_path}")
+    if cfg.use_real_data and not os.path.isdir(cfg.multitp_data_path):
+        raise FileNotFoundError(f"MultiTP data path not found: {cfg.multitp_data_path}")
+
+    # Load model
+    print(f"[MODEL] Loading {cfg.model_name} ...")
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        model_name=cfg.model_name,
+        max_seq_length=cfg.max_seq_length,
+        dtype=torch.bfloat16,
+        load_in_4bit=cfg.load_in_4bit,
+    )
+    FastLanguageModel.for_inference(model)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+    tokenizer.padding_side = "left"
+    print(f"[MODEL] Loaded. VRAM: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+
+    # Load scenarios for the ablation country
+    lang = _COUNTRY_LANG.get(ABLATION_COUNTRY, "en")
+    print(f"\n[DATA] Loading scenarios for {ABLATION_COUNTRY} (lang={lang})...")
+    if cfg.use_real_data:
+        base_df = load_multitp_dataset(
+            data_base_path=cfg.multitp_data_path,
+            lang=lang,
+            translator=cfg.multitp_translator,
+            suffix=cfg.multitp_suffix,
+            n_scenarios=cfg.n_scenarios,
+        )
+    else:
+        base_df = generate_multitp_scenarios(cfg.n_scenarios, lang=lang)
+    country_df = balance_scenario_dataset(base_df, min_per_category=50, seed=42, lang=lang)
+    country_df["lang"] = lang
+    print(f"[DATA] {len(country_df)} balanced scenarios loaded.")
+
+    # Build personas
+    personas = build_country_personas(ABLATION_COUNTRY, wvs_path=cfg.wvs_data_path)
+    print(f"[PERSONAS] {len(personas)} personas for {ABLATION_COUNTRY}:")
+    for i, p in enumerate(personas):
+        print(f"  P{i+1}: {p[:120]}{'...' if len(p) > 120 else ''}")
+
+    # Run ablation
+    print(f"\n{'='*70}")
+    print(f"RUNNING ABLATION: {ABLATION_COUNTRY} (lang={lang})")
+    print(f"{'='*70}")
+    ablation_results = run_ablation_study(
+        model, tokenizer, ABLATION_COUNTRY, personas, country_df, cfg
+    )
+
+    # Save results
+    out_path = os.path.join(cfg.output_dir, f"ablation_results_{ABLATION_COUNTRY}.pkl")
+    with open(out_path, "wb") as f:
+        pickle.dump(ablation_results, f)
+    print(f"\n[SAVE] Ablation results → {out_path}")
+
+    # Print key metrics to console for quick inspection.
+    print_ablation_summary(ablation_results, ABLATION_COUNTRY)
+
+    # Plot
+    plot_ablation(ablation_results, ABLATION_COUNTRY, cfg, cfg.output_dir)
+    print(f"[DONE] Ablation complete for {ABLATION_COUNTRY}.")
+
+
 if __name__ == "__main__":
-    main()        # ← full experiment
-    # debug_main()    # ← debug mode
+    # main()          # ← full 15-country experiment
+    ablation_main()   # ← ablation only (faster, single country)
+    # debug_main()    # ← step-by-step debug

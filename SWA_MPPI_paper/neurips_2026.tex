@@ -39,9 +39,9 @@ Model Predictive Path Integral Control}
 % ============================================================
 Large language models (LLMs) exhibit a culturally monolithic moral stance that
 systematically misaligns with the diverse ethical preferences of populations
-worldwide. We propose \textbf{SWA-MPPI}---\textbf{S}tochastic \textbf{W}elfare
+worldwide. We propose \textbf{SWA-MPPI}-\textbf{S}tochastic \textbf{W}elfare
 \textbf{A}gent with \textbf{M}odel \textbf{P}redictive \textbf{P}ath
-\textbf{I}ntegral control---a training-free, inference-time framework that steers
+\textbf{I}ntegral control-a training-free, inference-time framework that steers
 LLM moral decisions toward country-specific human preferences without modifying
 model weights. For each target country, SWA-MPPI constructs a small ensemble of
 culturally grounded \emph{persona agents} from World Values Survey (WVS) Wave~7
@@ -51,8 +51,8 @@ inter-agent disagreement exceeds an adaptively calibrated threshold~$\tau$. We
 evaluate on the Multilingual Trolley Problem benchmark (MultiTP), which provides
 country-specific Average Marginal Component Effects (AMCE) derived from over
 40~million human judgments across 233 countries and six moral dimensions. Experiments
-with two frontier 70B-class models---Meta-Llama-3.1-70B-Instruct and
-Qwen2.5-72B-Instruct---spanning 15 countries and 12 native languages show that
+with two frontier 70B-class models-Meta-Llama-3.1-70B-Instruct and
+Qwen2.5-72B-Instruct-spanning 15 countries and 12 native languages show that
 SWA-MPPI reduces Jensen-Shannon Distance to human moral preferences by
 \textbf{37.6\%} (Qwen) and \textbf{34.7\%} (Llama) on average relative to a
 vanilla LLM baseline, while improving Pearson correlation with human AMCE vectors
@@ -81,11 +81,11 @@ the Multilingual Trolley Problem dataset (MultiTP)~\citep{jin2025multitp}, provi
 a large-scale, cross-culturally validated benchmark for studying these differences.
 Built on over 40~million human judgments from 233 countries, the dataset captures
 country-specific Average Marginal Component Effects (AMCE) across six moral
-dimensions---species preference, gender, age, physical fitness, social status, and
+dimensions-species preference, gender, age, physical fitness, social status, and
 utilitarianism. Against this ground truth, \citet{jin2025multitp} evaluated 19
 contemporary LLMs and found that only the Llama~3 family achieves global
 misalignment scores below 0.6 on the $[0,\sqrt{6}]$ scale they propose, while
-many models---including GPT-4o Mini---show extreme preference binarisation that
+many models-including GPT-4o Mini-show extreme preference binarisation that
 departs markedly from the graded distributions observed in human respondents.
 
 Existing approaches to value alignment fall broadly into two families.
@@ -105,7 +105,7 @@ kleiman2017learning}. Second, the World Values Survey provides rich, empirically
 calibrated data on exactly these sub-group differences in 80+ countries. Third,
 when persona agents derived from this data disagree on a decision, that disagreement
 is itself a signal that the vanilla model's output may not reflect the target
-population's balance of views---a signal that can be leveraged through stochastic
+population's balance of views-a signal that can be leveraged through stochastic
 optimal control.
 
 SWA-MPPI proceeds as follows. For a target country, it builds four system-prompt
@@ -152,7 +152,7 @@ more controlled variation but remain English-centric. PRISM~\citep{kirk2024prism
 and GlobalOpinionQA~\citep{durmus2023global} begin to address cross-cultural
 diversity but cover only 4 and handful of languages respectively. MultiTP
 \citep{jin2025multitp} is the most comprehensive, supporting 107 languages and
-grounding evaluation in 40~million human judgments---we adopt it as our primary
+grounding evaluation in 40~million human judgments-we adopt it as our primary
 benchmark.
 
 \paragraph{Cross-cultural LLM evaluation.}
@@ -663,8 +663,8 @@ personas successfully counterbalance RLHF-induced overconfidence.
 Table~\ref{tab:trigger} reports MPPI trigger rates and flip rates per country for
 Qwen2.5-72B. Trigger rates range from 47\% (AUS) to 65\% (JPN), reflecting genuine
 inter-agent disagreement variability across countries and categories. Critically,
-\emph{flip rates}---the fraction of triggered scenarios where MPPI reverses the
-vanilla decision---are low (1.6\%--14.3\%), indicating that MPPI primarily
+\emph{flip rates}-the fraction of triggered scenarios where MPPI reverses the
+vanilla decision-are low (1.6\%--14.3\%), indicating that MPPI primarily
 \emph{modulates} decision confidence rather than reversing decisions wholesale.
 This is desirable: strong vanilla decisions are preserved while ambiguous ones are
 resolved in a culturally informed direction.
@@ -773,7 +773,7 @@ surface form.
 
 SWA-MPPI operates entirely on frozen model weights, requires no labelled preference
 data for training, and introduces a mean per-scenario overhead of approximately
-730\,ms on a single H100 GPU---a practical cost for deployment-scale culturally
+730\,ms on a single H100 GPU-a practical cost for deployment-scale culturally
 aware inference. We hope this work contributes a concrete step toward the pluralistic
 alignment vision of \citet{sorensen2024roadmap}: AI systems that genuinely model
 the diversity of human moral preferences rather than imposing a single culturally

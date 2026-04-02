@@ -1,0 +1,53 @@
+This is BibTeX, Version 0.99d
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: paper.aux
+Reallocating 'name_of_file' (item size: 1) to 9 items.
+The style file: abbrvnat.bst
+Reallocating 'name_of_file' (item size: 1) to 11 items.
+Database file #1: references.bib
+Warning--entry type for "unsloth2024" isn't style-file defined
+--line 230 of file references.bib
+Warning--empty booktitle in commonsense2021
+Warning--can't use both volume and number fields in williams2017mppi
+You've used 31 entries,
+            2773 wiz_defined-function locations,
+            754 strings with 11319 characters,
+and the built_in function-call counts, 18881 in all, are:
+= -- 1539
+> -- 1641
+< -- 15
++ -- 553
+- -- 522
+* -- 1672
+:= -- 2996
+add.period$ -- 98
+call.type$ -- 31
+change.case$ -- 257
+chr.to.int$ -- 31
+cite$ -- 64
+duplicate$ -- 706
+empty$ -- 1194
+format.name$ -- 555
+if$ -- 3854
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 29
+newline$ -- 166
+num.names$ -- 124
+pop$ -- 529
+preamble$ -- 1
+purify$ -- 226
+quote$ -- 0
+skip$ -- 640
+stack$ -- 0
+substring$ -- 454
+swap$ -- 105
+text.length$ -- 10
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 341
+warning$ -- 2
+while$ -- 121
+width$ -- 0
+write$ -- 403
+(There were 3 warnings)
