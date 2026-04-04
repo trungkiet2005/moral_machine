@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pdflatex -interaction=nonstopmode paper_revised.tex)",
+      "Bash(bibtex paper_revised)"
+    ]
+  }
+}
