@@ -1,0 +1,48 @@
+digraph SWA_MPPI {
+	bgcolor="#FFFFFF" dpi=300 fontcolor="#222222" fontname="Times New Roman" rankdir=TB size="10,8"
+	node [color="#333333" fillcolor="#FDFBF7" fontname="Times New Roman" margin="0.3,0.1" penwidth=1.5 shape=box style="rounded,filled"]
+	edge [arrowsize=0.8 color="#333333" fontname="Times New Roman" penwidth=1.5]
+	fontname="Times New Roman-Bold" fontsize=18 label="SWA-MPPI Pipeline: Dynamic Social Consensus for Cross-Cultural Value Negotiation
+" labelloc=t
+	subgraph cluster_0 {
+		bgcolor="#FFF9ED" color="#E69F00" label="1. Cultural & Scenario Grounding" penwidth=2 style=rounded
+		WVS [label="World Values Survey (WVS)
+[Cross-National Wave 7]" shape=cylinder]
+		MultiTP [label="Moral Machine Scenarios
+(MultiTP / Synthesized)" shape=note]
+		Persona [label="Target Country Personas
+(e.g., USA, CHN, JPN, BRA)"]
+	}
+	subgraph cluster_1 {
+		bgcolor="#EDF6FD" color="#56B4E9" label="2. Systematic Worldview Alignment (SWA)" penwidth=2 style=rounded
+		NativeLang [label="Native Language Translation
+(Characters, Scenarios, Prompts)"]
+		PersonaInject [label="Implicit Pre-Logit Control
+[Context Injection]"]
+		NativeLang -> PersonaInject
+	}
+	subgraph cluster_2 {
+		bgcolor="#EDF8F4" color="#009E73" label="3. Model Predictive Path Integral (MPPI)" penwidth=2 style=rounded
+		Sampling [label="Action Trajectory Sampling
+(K=128 samples with Noise Std = 0.3)" shape=parallelogram]
+		Prospect [label="Prospect Theory Value Function
+(Diminishing Sensitivity α, β & Loss Aversion κ)"]
+		Cost [label="Dynamic Cost Aggregation
+(KL Constraint & Cooperative Target)"]
+		Sampling -> Prospect
+		Prospect -> Cost
+	}
+	subgraph cluster_3 {
+		bgcolor="#EEF4F9" color="#0072B2" label="4. Output & Decision" penwidth=2 style=rounded
+		Decision [label="Decision Sharpening
+(Temperature Scaling)" shape=rarrow]
+		Output [label="Final Moral Consensus
+(LEFT vs RIGHT)" color="#D55E00" fillcolor="#D55E00" fontcolor=white shape=ellipse]
+		Decision -> Output
+	}
+	WVS -> Persona
+	Persona -> NativeLang
+	MultiTP -> NativeLang [label=" Dilemma Input"]
+	PersonaInject -> Sampling [label=" LLM Logits"]
+	Cost -> Decision [label=" Optimal Path"]
+}

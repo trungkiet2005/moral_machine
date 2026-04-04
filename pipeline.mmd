@@ -1,0 +1,41 @@
+graph TD
+    classDef stage1 fill:#E69F00,stroke:#333,stroke-width:2px,color:#fff;
+    classDef stage2 fill:#56B4E9,stroke:#333,stroke-width:2px,color:#fff;
+    classDef stage3 fill:#009E73,stroke:#333,stroke-width:2px,color:#fff;
+    classDef stage4 fill:#0072B2,stroke:#333,stroke-width:2px,color:#fff;
+
+    classDef defaultNode fill:#f4f4f4,stroke:#666,stroke-width:1px,color:#000;
+
+    subgraph Grounding ["1. Cultural & Scenario Grounding"]
+        WVS("World Values Survey (WVS)<br>[Cross-National Wave 7]"):::defaultNode
+        MultiTP["Moral Machine Scenarios<br>(MultiTP / Synthesized)"]:::defaultNode
+        Persona("Target Country Personas<br>(USA, CHN, JPN, BRA, etc.)"):::defaultNode
+        WVS -.-> Persona
+    end
+    
+    subgraph SWA ["2. Systematic Worldview Alignment (SWA)"]
+        NativeLang("Native Language Translation<br>[Characters, Scenarios]"):::defaultNode
+        PersonaInject("Implicit Pre-Logit Control<br>[Context Injection]"):::defaultNode
+        NativeLang --> PersonaInject
+    end
+    
+    subgraph MPPI ["3. Model Predictive Path Integral (MPPI)"]
+        Sampling["Action Trajectory Sampling<br>(K=128, Noise Std=0.3)"]:::defaultNode
+        Prospect["Prospect Theory Value Function<br>(Diminishing Sensitivity α, β & Loss Aversion κ)"]:::defaultNode
+        Cost["Dynamic Cost Aggregation<br>(KL Constraint & Cooperative Target)"]:::defaultNode
+        Sampling -->|Logits| Prospect --> Cost
+    end
+    
+    subgraph Output ["4. Output & Decision Maker"]
+        Decision("Decision Sharpening<br>(Temperature Scaling)"):::defaultNode
+        DecisionChoice{{"Final Moral Consensus<br>[LEFT vs RIGHT]"}}:::defaultNode
+        Decision --> DecisionChoice
+    end
+
+    Persona -->|System Prompt| NativeLang
+    MultiTP -->|Dilemma Inputs| NativeLang
+    PersonaInject --> Sampling
+    Cost -->|Optimal Path| Decision
+
+    %% Apply styles to subgraphs using CSS selectors via mmdc theme or HTML 
+    %% styling is mostly node-based.
