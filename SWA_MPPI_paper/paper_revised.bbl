@@ -1,9 +1,15 @@
-\begin{thebibliography}{33}
+\begin{thebibliography}{32}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Aakanksha et~al.(2024)]{aakanksha2024evalmor}
+Aakanksha et~al.
+\newblock {EvalMORAAL}: Evaluating morality and alignment of llms across
+  cultures.
+\newblock \emph{arXiv preprint arXiv:2410.01999}, 2024.
 
 \bibitem[Arditi et~al.(2025)Arditi, Obeso, Syed, Paleka, Panickssery, Gurnee,
   and Nanda]{arditi2025refusal}
@@ -12,14 +18,6 @@ A.~Arditi, O.~Obeso, A.~Syed, D.~Paleka, N.~Panickssery, W.~Gurnee, and
 \newblock Refusal in language models is mediated by a single direction.
 \newblock In \emph{Advances in Neural Information Processing Systems},
   volume~37, pages 136037--136083, 2025.
-
-\bibitem[Arora et~al.(2023)Arora, Kaffee, and Augenstein]{arora2023probing}
-A.~Arora, L.-A. Kaffee, and I.~Augenstein.
-\newblock Probing pre-trained language models for cross-cultural differences in
-  values.
-\newblock In \emph{Proceedings of the First Workshop on Cross-Cultural
-  Considerations in NLP}, pages 114--130. Association for Computational
-  Linguistics, 2023.
 
 \bibitem[Awad et~al.(2018)Awad, Dsouza, Kim, Schulz, Henrich, Shariff,
   Bonnefon, and Rahwan]{awad2018moral}
@@ -81,13 +79,6 @@ Z.~Huang, W.~Chen, C.~Lyu, et~al.
 \newblock {MPPI}-guided large language model generation.
 \newblock \emph{arXiv preprint arXiv:2403.09269}, 2024.
 
-\bibitem[Jiang et~al.(2021)Jiang, Hwang, Bhagavatula, Le~Bras, Liang, Dodge,
-  Sakaguchi, Forbes, Borchardt, Gabriel, et~al.]{commonsense2021}
-L.~Jiang, J.~D. Hwang, C.~Bhagavatula, R.~Le~Bras, J.~Liang, J.~Dodge,
-  K.~Sakaguchi, M.~Forbes, J.~Borchardt, S.~Gabriel, et~al.
-\newblock Delphi: Towards machine ethics and norms.
-\newblock 2021.
-
 \bibitem[Jin et~al.(2022)Jin, Levine, Gonzalez~Adauto, Kamal, Sap, Sachan,
   Mihalcea, Tenenbaum, and Sch{\"o}lkopf]{jin2022exceptions}
 Z.~Jin, S.~Levine, F.~Gonzalez~Adauto, O.~Kamal, M.~Sap, M.~Sachan,
@@ -129,6 +120,12 @@ M.~Kleiman-Weiner, R.~Saxe, and J.~B. Tenenbaum.
 \newblock Learning a commonsense moral theory.
 \newblock \emph{Cognition}, 167:\penalty0 107--123, 2017.
 
+\bibitem[Li et~al.(2024)]{li2024culturemanager}
+Y.~Li et~al.
+\newblock Culturemanager: Managing cultural differences in llms through
+  cultural adaptation.
+\newblock \emph{arXiv preprint arXiv:2409.02945}, 2024.
+
 \bibitem[Liu et~al.(2024)Liu, Lin, Hewitt, Paranjape, Bevilacqua, Petroni, and
   Liang]{liu2024lost}
 N.~F. Liu, K.~Lin, J.~Hewitt, A.~Paranjape, M.~Bevilacqua, F.~Petroni, and
@@ -136,12 +133,6 @@ N.~F. Liu, K.~Lin, J.~Hewitt, A.~Paranjape, M.~Bevilacqua, F.~Petroni, and
 \newblock Lost in the middle: How language models use long contexts.
 \newblock \emph{Transactions of the Association for Computational Linguistics},
   12:\penalty0 157--173, 2024.
-
-\bibitem[Manvi et~al.(2024)Manvi, Khanna, Burke, Lobell, and
-  Ermon]{manvi2024geographic}
-R.~Manvi, S.~Khanna, M.~Burke, D.~Lobell, and S.~Ermon.
-\newblock Large language models are geographically biased.
-\newblock \emph{arXiv preprint arXiv:2402.02680}, 2024.
 
 \bibitem[{Mistral AI Team}(2024)]{mistral2024}
 {Mistral AI Team}.
@@ -155,6 +146,12 @@ S.~Mudgal, J.~Lee, H.~Ganapathy, Y.~Li, T.~Wang, Y.~Huang, Z.~Chen, H.-T.
   Cheng, M.~Collins, T.~Strohman, et~al.
 \newblock Controlled decoding from language models.
 \newblock \emph{arXiv preprint arXiv:2310.17022}, 2024.
+
+\bibitem[Myung et~al.(2024)]{myung2024carb}
+J.~Myung et~al.
+\newblock {CARB}: Cultural alignment reasoning benchmark for large language
+  models.
+\newblock \emph{arXiv preprint arXiv:2406.14766}, 2024.
 
 \bibitem[Nie et~al.(2023)Nie, Zhang, Amdekar, Piech, Hashimoto, and
   Gerstenberg]{nie2023moca}
@@ -194,25 +191,10 @@ T.~Sorensen, J.~Moore, J.~Fisher, M.~Gordon, N.~Mireshghallah, C.~M. Rytting,
 \newblock A roadmap to pluralistic alignment.
 \newblock \emph{arXiv preprint arXiv:2402.05070}, 2024.
 
-\bibitem[Takemoto(2024)]{takemoto2024moral}
-K.~Takemoto.
-\newblock The moral machine experiment on large language models.
-\newblock \emph{Royal Society Open Science}, 11\penalty0 (2):\penalty0 231393,
-  2024.
-
 \bibitem[{Unsloth AI}(2024)]{unsloth2024}
 {Unsloth AI}.
 \newblock Unsloth: Fast {LLM} fine-tuning and inference, 2024.
 \newblock URL \url{https://github.com/unslothai/unsloth}.
-
-\bibitem[Wei et~al.(2022)Wei, Wang, Schuurmans, Bosma, Xia, Chi, Le, Zhou,
-  et~al.]{wei2022chain}
-J.~Wei, X.~Wang, D.~Schuurmans, M.~Bosma, F.~Xia, E.~Chi, Q.~V. Le, D.~Zhou,
-  et~al.
-\newblock Chain-of-thought prompting elicits reasoning in large language
-  models.
-\newblock In \emph{Advances in Neural Information Processing Systems},
-  volume~35, pages 24824--24837, 2022.
 
 \bibitem[Williams et~al.(2018)Williams, Drews, Goldfain, Rehg, and
   Theodorou]{williams2017mppi}
@@ -221,6 +203,12 @@ G.~Williams, P.~Drews, B.~Goldfain, J.~M. Rehg, and E.~A. Theodorou.
   applications to autonomous driving.
 \newblock In \emph{IEEE Transactions on Robotics}, volume~34, pages 1603--1622.
   IEEE, 2018.
+
+\bibitem[Yao et~al.(2024)]{yao2024caredio}
+J.~Yao et~al.
+\newblock {CAReDiO}: Cultural alignment of llm via reinforcement learning from
+  diverse human feedback with direct preference optimization.
+\newblock \emph{arXiv preprint arXiv:2410.18203}, 2024.
 
 \bibitem[Zou et~al.(2023)Zou, Phan, Chen, Campbell, Guo,
   et~al.]{zou2023representation}
