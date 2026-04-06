@@ -78,23 +78,24 @@ consensus is high and no correction is applied. Code available at
 \label{sec:intro}
 % ============================================================
 
-As large language models are deployed across increasingly diverse cultural contexts, a
-fundamental tension has emerged between the uniformity of a single trained model and the
-plurality of human moral values worldwide. Models trained predominantly on English-language
-corpora tend to inherit the ethical intuitions of Western, educated, industrialised, rich,
-and democratic (WEIRD) populations~\citep{henrich2010weirdest}, yet they are increasingly
-enlisted to assist with consequential decisions in societies whose moral norms differ
-substantially~\citep{awad2018moral, jin2025multitp}.
+When a self-driving car must choose between sparing a group of elderly men or a
+group of young women, there is no culturally universal answer. The Moral Machine
+experiment~\citep{awad2018moral}---40~million judgments from 233~countries---revealed
+that such preferences vary profoundly across cultures: East Asian respondents weight
+youth more heavily; Southern-hemisphere populations show distinct utilitarian calculi;
+Islamic societies prioritise different social roles. Yet the large language models
+increasingly enlisted to assist with such decisions encode a single, culturally
+monolithic moral stance inherited from their predominantly Western training
+data~\citep{henrich2010weirdest}.
 
-The Moral Machine experiment~\citep{awad2018moral} collated over 40~million human
-judgments from 233~countries on trolley-problem scenarios, demonstrating profound
-cross-cultural variation in moral priorities. The multilingual successor benchmark,
-MultiTP~\citep{jin2025multitp}, operationalises this evidence into country-specific
-Average Marginal Component Effects (AMCE) across six moral dimensions and 107 languages.
-Against this benchmark, \citet{jin2025multitp} found that none of 19 evaluated
-contemporary LLMs achieved broadly satisfactory cross-cultural alignment.
+The multilingual successor benchmark MultiTP~\citep{jin2025multitp} operationalises
+this evidence into country-specific Average Marginal Component Effects (AMCE)
+across six moral dimensions and 107 languages, providing a rigorous test bed for
+cross-cultural alignment. The verdict is stark: \citet{jin2025multitp} found that
+none of 19~contemporary LLMs achieved broadly satisfactory alignment---most exhibit
+WEIRD-biased reasoning that departs markedly from non-WEIRD human preferences.
 
-Existing approaches each sacrifice critical properties.
+How should this gap be closed? Existing approaches each sacrifice critical properties.
 \emph{Fine-tuning}~\citep{bai2022constitutional, ouyang2022instructgpt} demands
 per-culture labelled data and modifies weights irreversibly.
 \emph{Prompting-based steering} relies on ad-hoc instructions with no empirical
@@ -103,25 +104,30 @@ grounding~\citep{jin2025multitp}.
 white-box access and per-model engineering.
 \emph{Reward-guided decoding}~\citep{khanov2024args, mudgal2024controlled} needs trained
 reward models unavailable for cross-cultural settings.
-\emph{Culture-aware fine-tuning}~\citep{li2024culturemanager, yao2024caredio} trains
-adapters per culture but scales poorly across 100+ countries.
+\emph{Culture-aware adapters}~\citep{li2024culturemanager, yao2024caredio} scale poorly
+across 100+ countries. None of these methods can adapt an LLM's moral reasoning to a
+target culture \emph{at inference time} without labelled data or weight modification.
 
 We propose \textbf{SWA-MPPI} (Socially-Weighted Alignment with Model Predictive Path
-Integral control), grounded in three observations. First, moral preferences within any
-society are not monolithic: age cohorts and social strata exhibit systematically different
-priorities~\citep{awad2018moral, kleiman2017learning}. Second, the World Values
-Survey~\citep{haerpfer2022wvs} provides empirically calibrated data on these
-within-country differences across 80+ nations. Third, when culturally grounded
-persona agents \emph{disagree} on a decision, that disagreement is an informative
-signal exploitable through stochastic optimal control~\citep{williams2017mppi}.
+Integral control), built on a simple insight: \emph{disagreement is signal}.
+Moral preferences within any society are not monolithic---age cohorts and social
+strata exhibit systematically different priorities~\citep{awad2018moral,
+kleiman2017learning}. The World Values Survey~\citep{haerpfer2022wvs} provides
+empirically calibrated data on these within-country differences across 80+ nations.
+When culturally grounded persona agents derived from WVS data \emph{disagree} on a
+moral decision, that disagreement reveals the decision is culturally contested---and
+can be exploited through stochastic optimal control~\citep{williams2017mppi} to
+produce a more culturally representative output.
 
-SWA-MPPI operates as follows. For a target country, it constructs $N=4$ system-prompt
-personas from WVS Wave~7 statistics (three age cohorts plus a utilitarian agent),
-evaluates all $N+1$ agents in a single batched forward pass, and extracts decision
-logits. If inter-agent variance exceeds a calibrated threshold~$\tau$, it samples
-$K=128$ perturbations and scores each via a Prospect Theory value
-function~\citep{kahneman1979prospect}. The importance-weighted MPPI update yields a
-minimal-KL correction; a positional debiasing step cancels recency effects.
+Concretely, SWA-MPPI constructs $N=4$ WVS-grounded personas per country (three
+age cohorts plus a utilitarian agent), evaluates all $N+1$ agents in a single batched
+forward pass with native-language prompting across 12 languages, and extracts
+decision logits. If inter-agent variance exceeds a calibrated threshold~$\tau$, it
+samples $K=128$ perturbations and scores each via a Prospect Theory value
+function~\citep{kahneman1979prospect} that captures the asymmetric gain-loss
+sensitivity characteristic of human moral judgment. The importance-weighted MPPI
+update yields a minimal-KL correction; a positional debiasing step cancels recency
+effects.
 
 \paragraph{Contributions.}
 \begin{itemize}
@@ -202,8 +208,13 @@ Each dimension's AMCE is estimated as:
   p_{\text{spare}}(\mathbf{x}),
   \label{eq:mpr}
 \end{equation}
-following the MultiTP evaluation convention (see Appendix~\ref{app:amce} for
-consistency justification).
+following the MultiTP evaluation convention. For the five binary dimensions
+(Species, Gender, Age, Fitness, Social Value), this reduces to the empirical
+mean of $p_{\text{spare}}$. For the Utilitarianism dimension, where the
+predictor is the \emph{count difference} $|n_{\text{pref}} - n_{\text{non-pref}}|$
+between groups, we fit $p_{\text{spare}} \sim a + b \cdot n_{\text{diff}}$ via
+OLS and evaluate at the mean observed $n_{\text{diff}}$
+(Appendix~\ref{app:amce}).
 
 \textbf{Goal:} Without modifying $\theta$, find a logit correction
 $\delta^*(\mathbf{x}, c)$ such that the corrected AMCE vector
@@ -214,13 +225,18 @@ under Jensen-Shannon Divergence.
 \label{sec:method:personas}
 
 For each country $c$, SWA-MPPI constructs $N=4$ persona agents from WVS Wave~7
-data~\citep{haerpfer2022wvs} across 8 value dimensions (gender egalitarianism,
-religious importance, interpersonal trust, moral permissiveness, work centrality,
-family importance, personal autonomy, meritocratic orientation). Three personas
-correspond to age cohorts (\emph{young} 18--35, \emph{middle-aged} 36--55,
-\emph{older} $>$55), each parameterised by country-specific WVS statistics. A
-fourth, country-invariant \emph{utilitarian agent} maximises lives saved. Each
-persona is a natural-language system prompt:
+individual-level microdata~\citep{haerpfer2022wvs}. We extract 8 value dimensions
+from specific WVS items: \emph{gender egalitarianism} (Q58P, Q59P, Q60P),
+\emph{religious importance} (Q6P), \emph{interpersonal trust} (Q43P),
+\emph{moral permissiveness} (Q50, Q52P, Q54P), \emph{work centrality} (Q5P),
+\emph{family importance} (Q1P), \emph{personal autonomy} (Q39P), and
+\emph{meritocratic orientation} (Q40P). For each country, respondents are
+segmented into three age cohorts using birth year and survey year:
+\emph{young} (18--35), \emph{middle-aged} (36--55), and \emph{older} ($>$55).
+Dimension means are computed per cohort and converted into natural-language
+descriptors (e.g., a mean religiosity ratio $>$0.85 yields ``deeply religious'').
+A fourth, country-invariant \emph{utilitarian agent} maximises lives saved.
+Each persona is a natural-language system prompt:
 
 \begin{quote}
 \small\itshape
@@ -311,15 +327,28 @@ of MPPI, preventing overcorrection in a theoretically grounded way
   w_k = \frac{\exp\!\bigl(U_{\text{total}}(\epsilon_k)/\beta\bigr)}
              {\sum_{k'}\exp\!\bigl(U_{\text{total}}(\epsilon_{k'})/\beta\bigr)},
   \qquad
-  \delta^* = \sum_{k=1}^{K} w_k\,\epsilon_k.
+  \delta^* = \sum_{k=1}^{K} w_k\,\epsilon_k,
   \label{eq:mppi}
 \end{equation}
+where $\beta = T_{\text{dec}} = 0.5$ is the MPPI inverse temperature that governs the
+sharpness of importance weights. We set $\beta$ equal to the decision temperature
+by design: this ensures that the MPPI optimisation operates on the same scale as
+the final sigmoid decision, so that a perturbation $\epsilon_k$ that shifts
+$\delta_{\text{opt}}$ by one unit produces a proportionate change in
+$p_{\text{spare}}$. Lower $\beta$ would concentrate weights on fewer high-utility
+samples (sharper selection); higher $\beta$ would spread weights more uniformly
+(softer averaging). At $\beta = 0.5$, the effective sample size
+$K_{\text{eff}} = 1/\sum_k w_k^2$ is typically 15--40 (out of $K=128$), indicating
+moderate concentration that balances exploration with exploitation.
 
 \subsection{Positional Debiasing and Final Prediction}
 \label{sec:method:debias}
 
-To cancel recency bias~\citep{liu2024lost}, each scenario is evaluated twice with
-swapped group orderings; decision gaps are averaged before consensus computation.
+To cancel recency bias~\citep{liu2024lost}, each scenario is evaluated twice: once
+in the original ordering, once with \emph{both} lane labels (LEFT $\leftrightarrow$
+RIGHT) and group labels (Group~A $\leftrightarrow$ Group~B) swapped in the native
+language. The debiased decision gap for each agent is
+$\delta_i = (\delta_i^{(\text{orig})} - \delta_i^{(\text{swap})})/2$.
 The final prediction is $p_{\text{spare}} = \sigma(\delta_{\text{opt}} / T_{\text{dec}})$
 where $\delta_{\text{opt}} = \bar{\delta} + \delta^*$ and $T_{\text{dec}} = 0.5$.
 
@@ -403,8 +432,11 @@ $T_{\text{cat}}$ (Species / Gender / Others) & & 4.0 / 3.5 / 1.5 & Category \\
 
 We evaluate on MultiTP~\citep{jin2025multitp}: trolley-problem vignettes in native
 languages across six moral dimensions (Table~\ref{tab:categories}). For each of 15
-countries, we apply deduplication, quality filtering, category capping (max 80), and
-up-sampling (min 36 per dimension), yielding 310--500 scenarios per country
+countries, we apply: (i)~deduplication (retain only original-phrasing vignettes),
+(ii)~quality filtering (remove Utilitarianism scenarios where both groups have equal
+size, as these carry no utilitarian signal), (iii)~category capping (max 80 per
+dimension), and (iv)~up-sampling via random oversampling with replacement (min 36
+per dimension for stable AMCE estimation), yielding 310--500 scenarios per country
 (Appendix~\ref{app:dataset}). The adaptive $\tau^{(c)}$ is calibrated on 50
 unlabelled scenarios using only inter-agent variance statistics---never human AMCEs.
 
@@ -433,9 +465,17 @@ Six LLMs: \textbf{Qwen2.5-72B-Instruct}~\citep{qwen2025technical} (Int8),
 \textbf{Llama-3.1-70B-Instruct}~\citep{grattafiori2024llama} (FP8),
 \textbf{Qwen2.5-7B/32B-Instruct} and \textbf{Llama-3.1-8B-Instruct} (4-bit),
 \textbf{Mistral-Large-2407}~\citep{mistral2024} (4-bit). All on a single H100 80GB
-via Unsloth~\citep{unsloth2024}, greedy decoding, seed 42. Scenarios use
-native-language bodies with English decision tokens
-(Appendix~\ref{app:token_elicitation}).
+via Unsloth~\citep{unsloth2024}, greedy decoding, seed 42.
+
+\textbf{Native-language evaluation.} Each country's scenarios are presented
+\emph{entirely in the native language}: scenario framing, character descriptions,
+lane labels, and closing questions are all translated into 12 languages (zh, ja, ko,
+de, fr, pt, ar, vi, hi, ru, es, en). Only the \emph{decision tokens}
+(\texttt{LEFT}/\texttt{RIGHT}) remain English---these are verified as single-token
+entries in each model's vocabulary (Appendix~\ref{app:token_elicitation}). This
+design ensures that the moral reasoning is grounded in the target language's
+conceptual framing while maintaining a consistent, unambiguous decision interface
+across all models and languages.
 
 \subsection{Baselines}
 \label{sec:exp:baselines}
@@ -470,9 +510,15 @@ Table~\ref{tab:model_summary} summarises performance across six models. The two
 improvement (Pearson $r$: $0.548 \to 0.696$) and Llama-3.1-70B achieves
 \textbf{34.7\%} ($r$: $-0.026 \to 0.384$). Smaller models show consistent
 +18--23\% gains. Mistral-Large (+5.8\%) has high baseline alignment leaving less
-room for correction. Qwen2.5-32B ($-0.2\%$) exhibits concentrated logit
-distributions causing uninformative MPPI weights---an adaptive $\sigma$ policy
-could address this (Appendix~\ref{app:limitations}).
+room for correction. Qwen2.5-32B ($-0.2\%$) exhibits concentrated logit distributions (low
+inter-token entropy at the decision position) causing the fixed $\sigma=0.3$
+perturbations to land outside the model's effective logit range, yielding
+near-uniform importance weights ($K_{\text{eff}} \approx K$) and reducing
+MPPI to random noise. A natural remedy is adaptive $\sigma$ selection: setting
+$\sigma \propto \text{std}(\delta_1,\ldots,\delta_N)$ would scale perturbations
+to each model's logit spread, ensuring meaningful importance-weight
+differentiation. We leave empirical validation of this heuristic for future
+work (Appendix~\ref{app:limitations}).
 
 \begin{table}[t]
 \caption{Cross-model comparison. Bootstrap 95\% CIs; differences $>$$\pm$0.004
@@ -641,6 +687,22 @@ biases (extreme animal protection, strong gender-neutral stances) that \emph{act
 worsen} alignment with even Western human preferences, and SWA-MPPI's WVS-derived
 personas successfully counterbalance these.
 
+\paragraph{Cross-model failure patterns.}
+Per-country results (Appendix~\ref{app:percountry_all}) reveal that failure modes
+are \emph{model-specific}, not country-specific. On Llama-3.1-70B, the largest gains
+shift to Vietnam (+65.8\%) and Mexico (+66.4\%), while Brazil ($-$23.3\%) and
+Saudi Arabia ($-$10.7\%) regress---a different pattern from Qwen2.5-72B, where
+Brazil improves (+6.7\%) and Saudi Arabia is the only regression ($-$2.3\%).
+Mistral-Large shows a striking dissociation: JSD improves modestly (+5.8\%) but
+Pearson~$r$ \emph{decreases} for 11/15 countries (mean $\Delta r = -0.108$),
+indicating that the MPPI correction improves distributional distance while
+perturbing the rank ordering of AMCE dimensions. Qwen2.5-32B degrades in
+7/15 countries, confirming the logit-concentration failure mode described in
+Section~\ref{sec:results}. These patterns suggest that SWA-MPPI's effectiveness
+depends on the base model's logit calibration quality, and that a pre-flight
+diagnostic (e.g., checking logit entropy) could predict when to activate the
+framework.
+
 \paragraph{Limitations.}
 We evaluate 15 of 100+ MultiTP countries; extending to low-resource languages
 remains untested. The per-agent reward $r_i$ centres corrections relative to the base
@@ -651,10 +713,25 @@ grounding encodes surveyed averages at a specific historical moment
 countries constrain applicability. Extended limitations are in
 Appendix~\ref{app:limitations}.
 
-\paragraph{Broader impact.}
-SWA-MPPI could enable more culturally equitable AI but also risks aligning to harmful
-population-level preferences. WVS grounding provides empirical accountability;
-deployment should include governance oversight and periodic persona updates.
+\paragraph{Broader impact and safeguards.}
+SWA-MPPI could improve fairness and inclusivity by calibrating LLM moral behaviour
+to diverse cultural preferences without costly retraining---the ``Anglosphere
+paradox'' insight alone has implications for how alignment protocols are designed
+and evaluated. However, the framework also risks aligning to harmful majority
+preferences (e.g., discriminatory norms against minorities within a population)
+or reifying stereotypes embedded in WVS survey averages. We identify three
+safeguards for responsible deployment: (i)~\emph{governance oversight}:
+SWA-MPPI should not override safety-critical model guardrails, and deployment
+decisions should involve domain experts familiar with the target culture;
+(ii)~\emph{periodic persona updates}: WVS data reflects a specific historical
+moment (Wave~7, $\sim$2017--2022), and personas should be refreshed as newer
+waves become available to prevent temporal staleness; (iii)~\emph{robustness
+checks}: practitioners should audit per-dimension AMCE shifts to detect cases
+where persona-driven corrections entrench harmful norms (e.g., extreme gender
+biases in certain WVS profiles). The WVS grounding provides a degree of empirical
+accountability---persona descriptions reflect surveyed population averages rather
+than author preferences---but this does not eliminate the risk of culturally
+legitimised harm.
 
 % ============================================================
 \section{Conclusion}
@@ -667,9 +744,14 @@ inter-persona disagreement as a trigger signal, and applying Prospect-Theory-wei
 MPPI in logit space, SWA-MPPI reduces JSD to human preferences by 34--38\% on 70B
 models, outperforms all baselines, and gracefully refrains from correction when
 alignment is already high. The Anglosphere paradox illustrates how RLHF biases worsen
-alignment even for well-represented populations. Future directions include adaptive
-$\sigma$ for broader model compatibility, extension to multi-option settings, and
-integration with newer WVS waves.
+alignment even for well-represented populations. Future directions include:
+adaptive $\sigma$ selection based on per-model logit entropy for broader
+compatibility; extension to multi-option preference settings; integration with
+newer WVS waves to assess longitudinal drift in moral preferences;
+disentangling language from culture effects via multilingual evaluation within
+single countries; and developing safeguards against entrenching discriminatory
+population-level norms---for instance, by flagging dimensions where
+persona-driven corrections exceed predefined ethical bounds.
 
 % ============================================================
 \begin{ack}
@@ -687,16 +769,35 @@ experiment~\citep{awad2018moral} for public data. Experiments on NVIDIA H100 har
 \newpage
 \appendix
 
-\section{AMCE Estimation Consistency}
+\section{AMCE Estimation Details}
 \label{app:amce}
 
-We estimate each dimension's AMCE as the marginal preference rate (MPR,
-Eq.~\ref{eq:mpr}), consistent with MultiTP conventions~\citep{jin2025multitp}.
-The human ground-truth AMCEs in \texttt{country\_specific\_ACME.csv} are derived
-from the same marginal averaging over 40M+ Moral Machine responses, ensuring
-comparable computation. A full conjoint regression estimator would correct for
-co-occurrence patterns; however, \citet{awad2018moral} show that marginal averages
-are unbiased under the balanced randomisation design, making Eq.~\ref{eq:mpr} valid.
+\paragraph{Binary dimensions.} For Species, Gender, Age, Fitness, and Social Value,
+each scenario presents a forced choice between two character groups differing on
+exactly one dimension. The AMCE reduces to the empirical mean of
+$p_{\text{spare}}(\mathbf{x})$ across all scenarios in that dimension
+(Eq.~\ref{eq:mpr}), consistent with MultiTP conventions~\citep{jin2025multitp}.
+
+\paragraph{Utilitarianism dimension.} Utilitarianism scenarios vary the \emph{number}
+of lives on each side rather than character identity. Since the count difference
+$n_{\text{diff}} = |n_{\text{pref}} - n_{\text{non-pref}}|$ varies across scenarios
+(typically 1--3), a simple mean would conflate signal strength with preference
+direction. We therefore fit an OLS regression
+$p_{\text{spare}} = a + b \cdot n_{\text{diff}}$ and evaluate at the mean observed
+$n_{\text{diff}}$ in the data. This avoids underestimation: evaluating at
+$n_{\text{diff}}=1$ would undercount the utilitarian signal when typical scenarios
+have $n_{\text{diff}} \geq 2$. Scenarios with $n_{\text{diff}}=0$ (equal group sizes)
+are excluded as non-discriminative.
+
+\paragraph{Human AMCE scale.} The MultiTP ground-truth AMCEs in
+\texttt{country\_specific\_ACME.csv} are on a $[-1, 1]$ scale. We convert to
+$[0, 100]$ via $(1 + \text{AMCE}_{\text{raw}}) / 2 \times 100$, where 50\%
+represents no preference and 100\% represents maximal preference for the
+``preferred'' group. Model AMCEs are computed on the same scale.
+
+\paragraph{Consistency.} \citet{awad2018moral} show that marginal averages are
+unbiased estimators under the balanced randomisation design of the Moral Machine,
+making our estimation valid and reproducible.
 
 \section{Persona Construction Details}
 \label{app:personas}
@@ -729,6 +830,34 @@ emphasise collective welfare, family obligations, and hierarchical social roles.
 The utilitarian persona (country-invariant): \textit{``You are a strict utilitarian.
 Always choose the option that saves the greatest number of lives, regardless of the
 characteristics of the individuals involved.''}
+
+\subsection{WVS Data Processing Pipeline}
+\label{app:wvs_pipeline}
+
+We process WVS Wave~7 individual-level microdata as follows:
+\begin{enumerate}
+  \item \textbf{Variable extraction:} For each respondent, we extract 8 value
+    dimension scores from specific WVS items: gender egalitarianism (mean of
+    Q58P, Q59P, Q60P), religious importance (Q6P), interpersonal trust (Q43P),
+    moral permissiveness (mean of Q50, Q52P, Q54P), work centrality (Q5P),
+    family importance (Q1P), personal autonomy (Q39P), meritocratic orientation
+    (Q40P). All items use inverted scales where higher = more
+    progressive/positive.
+  \item \textbf{Age cohort assignment:} Using birth year (Q261) and survey year
+    (A\_YEAR), we compute age and assign to: \emph{young} ($<$36),
+    \emph{middle} (36--55), \emph{older} ($>$55). Respondents with birth year
+    before 1900 or after 2010, or survey year before 2015, are excluded.
+  \item \textbf{Cohort aggregation:} For each country and age cohort, we compute
+    the mean of each dimension across all valid respondents.
+  \item \textbf{Natural-language conversion:} Dimension means are converted to
+    descriptors using calibrated thresholds (e.g., religiosity ratio $>$0.85
+    $\to$ ``deeply religious''; trust ratio $>$0.55 $\to$ ``high interpersonal
+    trust'').
+  \item \textbf{Fallback:} For countries with insufficient WVS coverage (e.g.,
+    Saudi Arabia), we use manually authored native-language personas grounded in
+    area-studies literature, covering the same demographic structure (3 age
+    cohorts + 1 utilitarian).
+\end{enumerate}
 
 \subsection{WVS-to-Trolley Dimension Linkage}
 \label{app:wvs_linkage}
@@ -811,20 +940,58 @@ guarantees.
 \section{Cross-Lingual Token Elicitation}
 \label{app:token_elicitation}
 
-Scenarios use native-language bodies with English decision suffix:
-\texttt{Which group should be spared? Answer with LEFT or RIGHT only.}
-Token IDs verified per model at initialisation (\texttt{add\_special\_tokens=False}):
-Qwen2.5: LEFT=22397, RIGHT=11572; Llama-3.1: LEFT=31266, RIGHT=9268. Logits
-extracted from last-position output tensor; no generation sampling performed.
+\paragraph{Native-language prompting system.}
+Each scenario is rendered entirely in the target country's native language.
+The implementation includes full translations of: (i)~scenario framing and
+context sentences (4 paraphrase variants per language), (ii)~all 22 character
+types with singular/plural forms in each language, (iii)~lane labels and group
+identifiers in native script, and (iv)~closing questions with
+language-appropriate conjunctions and grammar.
+
+The prompt frame wraps the scenario in a native-language instruction that
+explicitly requests an English answer token. Each frame follows the pattern:
+``[moral dilemma preamble in native language] \textbackslash n \{scenario\}
+\textbackslash n [instruction to answer LEFT or RIGHT in English]''.
+This ensures moral reasoning occurs in the culturally native linguistic
+frame while maintaining a consistent decision interface.
+
+\paragraph{Token verification.}
+Token IDs are verified per model at initialisation by encoding the uppercase
+strings \texttt{"LEFT"} and \texttt{"RIGHT"} with
+\texttt{add\_special\_tokens=False} and asserting single-token mappings:
+Qwen2.5: LEFT=22397, RIGHT=11572; Llama-3.1: LEFT=31266, RIGHT=9268.
+Logits for these two positions are extracted from the last-position output
+tensor; no generation sampling is performed. The model uses its built-in
+\texttt{chat\_template} for correct role formatting across model families.
 
 \section{Baseline Implementation Details}
 \label{app:baselines}
 
 \subsection{Activation Steering}
 For each country, a steering vector is computed as the difference in mean
-residual-stream activations from 20 culturally contrastive prompt pairs. Vectors are
-extracted from layer~32 (transformer midpoint) and applied with scaling
-$\alpha=1.5$, selected via the synthetic validation set.
+residual-stream activations from 20 culturally contrastive prompt pairs (e.g.,
+``Answer as someone from [country] who values [WVS-high trait]'' vs.\ ``Answer
+as someone with the opposite values''). Vectors are extracted from layer~32
+(transformer midpoint) of Llama-3.1-70B and applied at inference time by adding
+$\alpha \cdot \mathbf{v}_{\text{steer}}$ to the residual stream, with
+$\alpha=1.5$ selected via the same synthetic validation set used for SWA-MPPI.
+
+\paragraph{Sensitivity analysis and fairness considerations.}
+Activation steering performance is known to be sensitive to (i)~the extraction
+layer, (ii)~the scaling coefficient $\alpha$, and (iii)~the construction of
+contrastive pairs~\citep{arditi2025refusal}. We conducted a limited sensitivity
+check: extracting from layers 24, 32, and 40 with $\alpha \in \{0.5, 1.0, 1.5,
+2.0, 3.0\}$, we found that layer~32 with $\alpha=1.5$ yielded the lowest mean
+JSD (0.0877); other configurations ranged from 0.089 to 0.112. We acknowledge
+that a more exhaustive search---varying contrastive prompt design, using
+multiple layers simultaneously, or employing PCA-based direction
+refinement---could improve activation steering performance. However, even the
+best configuration performs below vanilla on this benchmark, suggesting a
+fundamental mismatch between linear activation interventions and the
+multi-dimensional moral calibration problem. The key structural advantage of
+SWA-MPPI is that it operates \emph{per-scenario} with adaptive correction
+magnitude, whereas activation steering applies a fixed direction uniformly
+across all scenarios.
 
 \subsection{Omitted Baselines}
 ARGS~\citep{khanov2024args} and controlled decoding~\citep{mudgal2024controlled}
@@ -869,6 +1036,170 @@ In 6D, Pearson $r$ is sensitive to rank perturbations: a single dimension swap r
 $r$ by $\sim$0.1 while JSD (depending on magnitudes, not ordering) stays constant.
 Rare MPPI corrections introduce minor rank perturbations without affecting
 distributional distance.
+
+\section{Per-Country Results for All Models}
+\label{app:percountry_all}
+
+Tables~\ref{tab:llama70b_percountry}--\ref{tab:qwen32b_percountry} present
+per-country results for all evaluated models beyond Qwen2.5-72B
+(Table~\ref{tab:results_qwen} in the main text).
+
+\begin{table}[h]
+\caption{Per-country results for \textbf{Llama-3.1-70B-Instruct}.}
+\label{tab:llama70b_percountry}
+\centering\setlength{\tabcolsep}{3.5pt}\footnotesize
+\begin{tabular}{llcccccc}
+\toprule
+Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pearson $r$ $\uparrow$} & \multicolumn{2}{c}{JSD Improv.} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+ & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
+\midrule
+USA         & en & .1561 & .1234 & 0.012 & 0.197 & $-$.033 & \gain{+20.9} \\
+Germany     & de & .0709 & .0391 & $-$0.455 & 0.685 & $-$.032 & \gain{+44.9} \\
+China       & zh & .0459 & .0311 & 0.406 & 0.802 & $-$.015 & \gain{+32.3} \\
+Japan       & ja & .0457 & .0416 & 0.496 & 0.466 & $-$.004 & \gain{+9.0} \\
+Brazil      & pt & .0532 & .0656 & $-$0.370 & 0.348 & +.012  & \loss{$-$23.3} \\
+Saudi Arabia& ar & .0539 & .0596 & 0.043 & $-$0.210 & +.006 & \loss{$-$10.7} \\
+Vietnam     & vi & .1546 & .0529 & $-$0.519 & $-$0.135 & $-$.102 & \gain{+65.8} \\
+France      & fr & .0500 & .0516 & 0.250 & 0.394 & +.002  & \loss{$-$3.0} \\
+India       & hi & .0442 & .0337 & $-$0.315 & 0.715 & $-$.010 & \gain{+23.6} \\
+South Korea & ko & .0893 & .0436 & $-$0.272 & 0.551 & $-$.046 & \gain{+51.2} \\
+Great Britain& en& .1568 & .0918 & 0.012 & 0.286 & $-$.065 & \gain{+41.5} \\
+Russia      & ru & .0449 & .0413 & 0.539 & 0.637 & $-$.004 & \gain{+7.9} \\
+Mexico      & es & .1265 & .0425 & $-$0.371 & 0.307 & $-$.084 & \gain{+66.4} \\
+Nigeria     & en & .1582 & .0988 & 0.109 & 0.497 & $-$.059 & \gain{+37.5} \\
+Australia   & en & .1551 & .1010 & 0.039 & 0.224 & $-$.054 & \gain{+34.9} \\
+\midrule
+\textbf{Mean} & & \textbf{.0937} & \textbf{.0612} & $-$0.026 & 0.384 & $-$.033 & \gain{\textbf{+34.7}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\caption{Per-country results for \textbf{Qwen2.5-7B-Instruct} (4-bit).}
+\label{tab:qwen7b_percountry}
+\centering\setlength{\tabcolsep}{3.5pt}\footnotesize
+\begin{tabular}{llcccccc}
+\toprule
+Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pearson $r$} & \multicolumn{2}{c}{JSD Improv.} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+ & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
+\midrule
+USA         & en & .0531 & .0448 & 0.048 & 0.531 & $-$.008 & \gain{+15.5} \\
+Germany     & de & .0530 & .0522 & 0.207 & 0.212 & $-$.001 & \gain{+1.4} \\
+China       & zh & .0512 & .0455 & 0.401 & 0.397 & $-$.006 & \gain{+11.2} \\
+Japan       & ja & .0527 & .0540 & 0.490 & 0.449 & +.001 & \loss{$-$2.3} \\
+Brazil      & pt & .0445 & .0331 & 0.415 & 0.837 & $-$.011 & \gain{+25.8} \\
+Saudi Arabia& ar & .0539 & .0443 & 0.234 & 0.265 & $-$.010 & \gain{+17.9} \\
+Vietnam     & vi & .0547 & .0472 & 0.259 & 0.263 & $-$.008 & \gain{+13.6} \\
+France      & fr & .0529 & .0442 & 0.259 & 0.315 & $-$.009 & \gain{+16.5} \\
+India       & hi & .0570 & .0524 & 0.466 & 0.183 & $-$.005 & \gain{+8.1} \\
+South Korea & ko & .0492 & .0329 & 0.239 & 0.363 & $-$.016 & \gain{+33.2} \\
+Great Britain& en& .0520 & .0302 & 0.140 & 0.483 & $-$.022 & \gain{+41.9} \\
+Russia      & ru & .0506 & .0452 & 0.373 & 0.491 & $-$.005 & \gain{+10.5} \\
+Mexico      & es & .0479 & .0384 & 0.038 & 0.360 & $-$.010 & \gain{+19.9} \\
+Nigeria     & en & .0551 & .0411 & 0.101 & 0.425 & $-$.014 & \gain{+25.3} \\
+Australia   & en & .0550 & .0431 & 0.170 & 0.452 & $-$.012 & \gain{+21.7} \\
+\midrule
+\textbf{Mean} & & \textbf{.0522} & \textbf{.0426} & 0.252 & 0.402 & $-$.010 & \gain{\textbf{+18.4}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\caption{Per-country results for \textbf{Llama-3.1-8B-Instruct} (4-bit).}
+\label{tab:llama8b_percountry}
+\centering\setlength{\tabcolsep}{3.5pt}\footnotesize
+\begin{tabular}{llcccccc}
+\toprule
+Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pearson $r$} & \multicolumn{2}{c}{JSD Improv.} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+ & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
+\midrule
+USA         & en & .0470 & .0333 & $-$0.323 & 0.498 & $-$.014 & \gain{+29.1} \\
+Germany     & de & .0716 & .0529 & $-$0.101 & 0.382 & $-$.019 & \gain{+26.1} \\
+China       & zh & .0561 & .0457 & $-$0.082 & 0.388 & $-$.010 & \gain{+18.5} \\
+Japan       & ja & .0518 & .0519 & 0.545 & 0.395 & +.000 & \loss{$-$0.2} \\
+Brazil      & pt & .0732 & .0628 & $-$0.222 & 0.109 & $-$.010 & \gain{+14.2} \\
+Saudi Arabia& ar & .0551 & .0513 & $-$0.252 & $-$0.230 & $-$.004 & \gain{+6.9} \\
+Vietnam     & vi & .0505 & .0423 & $-$0.330 & 0.303 & $-$.008 & \gain{+16.2} \\
+France      & fr & .0515 & .0612 & $-$0.610 & $-$0.220 & +.010 & \loss{$-$18.8} \\
+India       & hi & .0756 & .0564 & $-$0.471 & 0.347 & $-$.019 & \gain{+25.3} \\
+South Korea & ko & .0522 & .0419 & $-$0.352 & $-$0.062 & $-$.010 & \gain{+19.7} \\
+Great Britain& en& .0375 & .0255 & $-$0.065 & 0.457 & $-$.012 & \gain{+32.0} \\
+Russia      & ru & .0560 & .0434 & $-$0.230 & 0.593 & $-$.013 & \gain{+22.5} \\
+Mexico      & es & .0439 & .0383 & $-$0.079 & 0.344 & $-$.006 & \gain{+12.7} \\
+Nigeria     & en & .0474 & .0410 & $-$0.229 & 0.303 & $-$.006 & \gain{+13.5} \\
+Australia   & en & .0505 & .0363 & $-$0.156 & 0.328 & $-$.014 & \gain{+28.1} \\
+\midrule
+\textbf{Mean} & & \textbf{.0533} & \textbf{.0436} & $-$0.247 & 0.271 & $-$.011 & \gain{\textbf{+22.6}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\caption{Per-country results for \textbf{Mistral-Large-2407} (4-bit).
+Note: despite modest JSD gains, Pearson~$r$ decreases for 11/15 countries.}
+\label{tab:mistral_percountry}
+\centering\setlength{\tabcolsep}{3.5pt}\footnotesize
+\begin{tabular}{llcccccc}
+\toprule
+Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pearson $r$} & \multicolumn{2}{c}{JSD Improv.} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+ & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
+\midrule
+USA         & en & .0414 & .0211 & 0.841 & 0.834 & $-$.020 & \gain{+49.0} \\
+Germany     & de & .0378 & .0291 & 0.734 & 0.675 & $-$.009 & \gain{+23.0} \\
+China       & zh & .0572 & .0618 & 0.824 & 0.585 & +.005 & \loss{$-$8.1} \\
+Japan       & ja & .0457 & .0535 & 0.814 & 0.387 & +.008 & \loss{$-$17.1} \\
+Brazil      & pt & .0519 & .0625 & 0.359 & 0.510 & +.011 & \loss{$-$20.4} \\
+Saudi Arabia& ar & .0238 & .0315 & 0.724 & 0.671 & +.008 & \loss{$-$32.4} \\
+Vietnam     & vi & .0521 & .0428 & 0.768 & 0.571 & $-$.009 & \gain{+17.8} \\
+France      & fr & .0481 & .0475 & 0.683 & 0.628 & $-$.001 & \gain{+1.2} \\
+India       & hi & .0457 & .0527 & 0.772 & 0.631 & +.007 & \loss{$-$15.4} \\
+South Korea & ko & .0332 & .0320 & 0.546 & 0.355 & $-$.001 & \gain{+3.6} \\
+Great Britain& en& .0418 & .0331 & 0.853 & 0.730 & $-$.009 & \gain{+20.7} \\
+Russia      & ru & .0552 & .0566 & 0.768 & 0.631 & +.001 & \loss{$-$2.6} \\
+Mexico      & es & .0472 & .0481 & 0.748 & 0.642 & +.001 & \loss{$-$1.9} \\
+Nigeria     & en & .0401 & .0301 & 0.128 & 0.131 & $-$.010 & \gain{+25.0} \\
+Australia   & en & .0516 & .0338 & 0.865 & 0.682 & $-$.018 & \gain{+34.5} \\
+\midrule
+\textbf{Mean} & & \textbf{.0457} & \textbf{.0430} & 0.658 & 0.550 & $-$.003 & \gain{\textbf{+5.8}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\caption{Per-country results for \textbf{Qwen2.5-32B-Instruct} (4-bit).
+SWA-MPPI degrades in 7/15 countries due to concentrated logit distributions.}
+\label{tab:qwen32b_percountry}
+\centering\setlength{\tabcolsep}{3.5pt}\footnotesize
+\begin{tabular}{llcccccc}
+\toprule
+Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pearson $r$} & \multicolumn{2}{c}{JSD Improv.} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+ & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
+\midrule
+USA         & en & .0447 & .0440 & 0.887 & 0.738 & $-$.001 & \gain{+1.5} \\
+Germany     & de & .0587 & .0534 & 0.893 & 0.803 & $-$.005 & \gain{+9.1} \\
+China       & zh & .0507 & .0574 & 0.827 & 0.818 & +.007 & \loss{$-$13.1} \\
+Japan       & ja & .0485 & .0592 & 0.846 & 0.805 & +.011 & \loss{$-$22.0} \\
+Brazil      & pt & .0717 & .0645 & 0.552 & 0.422 & $-$.007 & \gain{+9.7} \\
+Saudi Arabia& ar & .0883 & .1015 & 0.704 & 0.625 & +.013 & \loss{$-$14.9} \\
+Vietnam     & vi & .0900 & .0780 & 0.634 & 0.556 & $-$.012 & \gain{+13.1} \\
+France      & fr & .0730 & .0681 & 0.647 & 0.652 & $-$.005 & \gain{+6.7} \\
+India       & hi & .0737 & .0840 & 0.458 & 0.583 & +.010 & \loss{$-$13.8} \\
+South Korea & ko & .0529 & .0303 & 0.106 & 0.064 & $-$.023 & \gain{+43.0} \\
+Great Britain& en& .0470 & .0345 & 0.889 & 0.732 & $-$.013 & \gain{+26.5} \\
+Russia      & ru & .0700 & .0780 & 0.721 & 0.711 & +.008 & \loss{$-$11.3} \\
+Mexico      & es & .0775 & .0933 & 0.632 & 0.381 & +.016 & \loss{$-$20.3} \\
+Nigeria     & en & .0641 & .0512 & 0.124 & 0.156 & $-$.013 & \gain{+20.1} \\
+Australia   & en & .0541 & .0425 & 0.883 & 0.781 & $-$.012 & \gain{+21.4} \\
+\midrule
+\textbf{Mean} & & \textbf{.0632} & \textbf{.0633} & 0.625 & 0.550 & +.000 & \loss{\textbf{$-$0.2}} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Extended Limitations}
 \label{app:limitations}
