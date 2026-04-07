@@ -237,7 +237,7 @@ gain/loss sensitivity characteristic of human moral judgment.
 \label{sec:method:problem}
 
 Let $\mathcal{X}$ be the set of moral dilemma scenarios, each presenting a forced
-binary choice via decision tokens \texttt{LEFT}~($\ell$) and \texttt{RIGHT}~($r$).
+binary choice via decision tokens \texttt{A}~($a$) and \texttt{B}~($b$).
 For target country $c$, let $\mathbf{h}^{(c)} \in \mathbb{R}^6$ be the human AMCE
 vector from 40M+ judgments~\citep{awad2018moral}. A frozen LLM $f_\theta$ produces
 logits $\mathbf{z}(\mathbf{x}) = [z_\ell,\, z_r]$; the spare probability is
@@ -400,8 +400,8 @@ moderate concentration that balances exploration with exploitation.
 \label{sec:method:debias}
 
 To cancel recency bias~\citep{liu2024lost}, each scenario is evaluated twice: once
-in the original ordering, once with \emph{both} lane labels (LEFT $\leftrightarrow$
-RIGHT) and group labels (Group~A $\leftrightarrow$ Group~B) swapped in the native
+in the original ordering, once with \emph{both} choice labels (A $\leftrightarrow$
+B) and group labels (Group~A $\leftrightarrow$ Group~B) swapped in the native
 language. The debiased decision gap for each agent is
 $\delta_i = (\delta_i^{(\text{orig})} - \delta_i^{(\text{swap})})/2$.
 The final prediction is $p_{\text{spare}} = \sigma(\delta_{\text{opt}} / T_{\text{dec}})$
@@ -538,7 +538,7 @@ future work and the reader should weigh all reported deltas accordingly.
 \emph{entirely in the native language}: scenario framing, character descriptions,
 lane labels, and closing questions are all translated into 12 languages (zh, ja, ko,
 de, fr, pt, ar, vi, hi, ru, es, en). Only the \emph{decision tokens}
-(\texttt{LEFT}/\texttt{RIGHT}) remain English-these are verified as single-token
+(\texttt{A}/\texttt{B}) remain English-these are verified as single-token
 entries in each model's vocabulary (Appendix~\ref{app:token_elicitation}). This
 design ensures that the moral reasoning is grounded in the target language's
 conceptual framing while maintaining a consistent, unambiguous decision interface
@@ -1379,15 +1379,15 @@ language-appropriate conjunctions and grammar.
 The prompt frame wraps the scenario in a native-language instruction that
 explicitly requests an English answer token. Each frame follows the pattern:
 ``[moral dilemma preamble in native language] \textbackslash n \{scenario\}
-\textbackslash n [instruction to answer LEFT or RIGHT in English]''.
+\textbackslash n [instruction to answer A or B in English]''.
 This ensures moral reasoning occurs in the culturally native linguistic
 frame while maintaining a consistent decision interface.
 
 \paragraph{Token verification.}
 Token IDs are verified per model at initialisation by encoding the uppercase
-strings \texttt{"LEFT"} and \texttt{"RIGHT"} with
+strings \texttt{"A"} and \texttt{"B"} with
 \texttt{add\_special\_tokens=False} and asserting single-token mappings:
-Qwen2.5: LEFT=22397, RIGHT=11572; Llama-3.1: LEFT=31266, RIGHT=9268.
+Qwen2.5: A=22397, B=11572; Llama-3.1: A=31266, B=9268.
 Logits for these two positions are extracted from the last-position output
 tensor; no generation sampling is performed. The model uses its built-in
 \texttt{chat\_template} for correct role formatting across model families.
