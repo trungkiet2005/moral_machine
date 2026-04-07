@@ -1,0 +1,4 @@
+# One-shot PDF build with BibTeX (run from this directory: latexmk -pdf paper_revised.tex)
+$pdf_mode = 1;
+$bibtex_use = 2;
+@default_files = ('paper_revised.tex');

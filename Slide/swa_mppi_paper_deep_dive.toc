@@ -1,0 +1,6 @@
+\beamer@sectionintoc {1}{Motivation \& problem}{3}{0}{1}
+\beamer@sectionintoc {2}{Problem formulation}{6}{0}{2}
+\beamer@sectionintoc {3}{Method pipeline}{7}{0}{3}
+\beamer@sectionintoc {4}{Experiments}{14}{0}{4}
+\beamer@sectionintoc {5}{Mechanisms \& robustness}{17}{0}{5}
+\beamer@sectionintoc {6}{Takeaways}{21}{0}{6}

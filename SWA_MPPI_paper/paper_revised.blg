@@ -1,53 +1,48 @@
-This is BibTeX, Version 0.99d
+This is BibTeX, Version 0.99e
 Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
 The top-level auxiliary file: paper_revised.aux
 Reallocating 'name_of_file' (item size: 1) to 9 items.
 The style file: abbrvnat.bst
 Reallocating 'name_of_file' (item size: 1) to 11 items.
 Database file #1: references.bib
-Warning--entry type for "unsloth2024" isn't style-file defined
---line 230 of file references.bib
-Warning--empty booktitle in commonsense2021
-Warning--can't use both volume and number fields in williams2017mppi
 You've used 33 entries,
             2773 wiz_defined-function locations,
-            762 strings with 11756 characters,
-and the built_in function-call counts, 20097 in all, are:
-= -- 1630
-> -- 1772
-< -- 15
-+ -- 597
-- -- 564
-* -- 1786
-:= -- 3202
-add.period$ -- 104
+            758 strings with 11431 characters,
+and the built_in function-call counts, 18341 in all, are:
+= -- 1486
+> -- 1600
+< -- 14
++ -- 540
+- -- 507
+* -- 1592
+:= -- 2971
+add.period$ -- 102
 call.type$ -- 33
-change.case$ -- 276
+change.case$ -- 254
 chr.to.int$ -- 33
-cite$ -- 68
-duplicate$ -- 746
-empty$ -- 1256
-format.name$ -- 599
-if$ -- 4092
+cite$ -- 66
+duplicate$ -- 694
+empty$ -- 1169
+format.name$ -- 547
+if$ -- 3710
 int.to.chr$ -- 1
 int.to.str$ -- 1
 missing$ -- 31
 newline$ -- 176
 num.names$ -- 132
-pop$ -- 567
+pop$ -- 517
 preamble$ -- 1
-purify$ -- 243
+purify$ -- 221
 quote$ -- 0
-skip$ -- 678
+skip$ -- 616
 stack$ -- 0
-substring$ -- 458
-swap$ -- 107
-text.length$ -- 10
+substring$ -- 351
+swap$ -- 68
+text.length$ -- 5
 text.prefix$ -- 0
 top$ -- 0
 type$ -- 363
-warning$ -- 2
-while$ -- 127
+warning$ -- 0
+while$ -- 119
 width$ -- 0
-write$ -- 427
-(There were 3 warnings)
+write$ -- 421

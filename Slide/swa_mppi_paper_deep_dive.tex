@@ -1,0 +1,298 @@
+% =============================================================================
+% SWA-MPPI — Deep-dive Beamer deck (aligned with paper_revised.tex)
+% Compile: pdflatex swa_mppi_paper_deep_dive.tex (run twice for TOC)
+% =============================================================================
+\documentclass[10pt,aspectratio=169]{beamer}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+\setbeamercolor{structure}{fg=blue!60!black}
+
+\definecolor{gaingreen}{RGB}{0,128,0}
+\definecolor{lossred}{RGB}{180,0,0}
+\newcommand{\gain}[1]{\textcolor{gaingreen}{#1}}
+\newcommand{\loss}[1]{\textcolor{lossred}{#1}}
+
+\title{SWA-MPPI}
+\subtitle{Socially-Weighted Alignment with Model Predictive Path Integral Control\\[0.3em]
+\small\textit{Cross-cultural moral alignment of LLMs in logit space}}
+\author{Paper walkthrough (NeurIPS-style)}
+\date{\small Technical deep dive}
+
+\begin{document}
+
+% -----------------------------------------------------------------------------
+\begin{frame}
+  \titlepage
+  \vspace{-0.5em}
+  \begin{center}
+    \footnotesize Source: \texttt{SWA\_MPPI\_paper/paper\_revised.tex}
+  \end{center}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Outline}
+  \tableofcontents
+\end{frame}
+
+\section{Motivation \& problem}
+
+\begin{frame}{Why this problem?}
+  \begin{itemize}
+    \item \textbf{Moral preferences are culturally contingent} (Moral Machine: 40M+ judgments across 233 countries).
+    \item \textbf{LLMs} inherit predominantly Western / WEIRD training priors (Henrich et al.).
+    \item \textbf{MultiTP} (Jin et al.): multilingual trolley benchmark with country-specific human AMCEs---a rigorous testbed for \emph{alignment to local populations}.
+  \end{itemize}
+  \vspace{0.3em}
+  \begin{block}{Deployment constraint}
+    We want \textbf{inference-time} adaptation: \textbf{frozen weights}, \textbf{no per-culture labelled preference data}, \textbf{no reward model training}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{What existing approaches sacrifice}
+  \small
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Approach} & \textbf{Limitation for cross-cultural moral alignment} \\
+    \midrule
+    Fine-tuning & Labels + irreversible weight change \\
+    Ad-hoc prompting & Weak empirical grounding \\
+    Activation steering & White-box, heavy per-model tuning \\
+    ARGS / controlled decoding & Trained RM often unavailable \\
+    Culture adapters & Scale poorly to 100+ countries \\
+    \bottomrule
+  \end{tabular}
+\end{frame}
+
+\begin{frame}{Core insight: \emph{disagreement is signal}}
+  \begin{itemize}
+    \item Within-country moral views are \textbf{not monolithic} (age, strata)---supported by survey microdata (WVS Wave~7).
+    \item Build \textbf{multiple WVS-grounded personas}; when they \textbf{disagree} on a dilemma, the scenario is \textbf{culturally contested}.
+    \item That disagreement triggers a \textbf{bounded, stochastic} correction in \textbf{logit space} (not generation sampling).
+  \end{itemize}
+\end{frame}
+
+\section{Problem formulation}
+
+\begin{frame}{Setting: binary moral choice in MultiTP}
+  \begin{itemize}
+    \item Scenario $\mathbf{x}$: forced choice via decision tokens \texttt{LEFT} / \texttt{RIGHT}.
+    \item Frozen LLM $f_\theta$: logits $\mathbf{z}=[z_\ell,z_r]$, gap $\Delta=z_r-z_\ell$.
+    \item \textbf{Human target}: country AMCE vector $\mathbf{h}^{(c)}\in\mathbb{R}^6$ (six moral dimensions).
+    \item \textbf{Model estimate}: $\hat{\mathbf{m}}^{(c)}$ from predicted $p_{\text{spare}}$ pooled per dimension (MultiTP convention; Utilitarianism via regression on count difference).
+  \end{itemize}
+  \vspace{0.3em}
+  \begin{block}{Objective}
+    Find logit correction $\delta^\ast(\mathbf{x},c)$ so $\hat{\mathbf{m}}^{(c)}$ is closer to $\mathbf{h}^{(c)}$ under \textbf{Jensen--Shannon divergence} (primary).
+  \end{block}
+\end{frame}
+
+\section{Method pipeline}
+
+\begin{frame}{Overview: four stages}
+  \begin{enumerate}
+    \item \textbf{Personas} ($N{=}4$): 3 WVS age cohorts + 1 utilitarian agent (English system prompts; scenario text stays native-language).
+    \item \textbf{Batched evaluation}: base + $N$ personas in \textbf{one} forward pass $\Rightarrow$ per-agent decision gaps $\delta_i$.
+    \item \textbf{Conflict detection}: if inter-agent variance $\nu\ge\tau^{(c)}$, run MPPI; else use consensus only.
+    \item \textbf{PT-weighted MPPI} in logit space + \textbf{positional debiasing} (orig vs.\ lane/group swap).
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Persona construction (WVS $\rightarrow$ natural language)}
+  \small
+  Eight value dimensions from specific WVS items (e.g.\ gender egalitarianism Q58P--Q60P, religion Q6P, trust Q43P, \ldots).
+  \begin{itemize}
+    \item Segment respondents into \textbf{young / middle / older}; map dimension means to \textbf{natural-language descriptors}.
+    \item Fourth persona: \textbf{utilitarian} (save more lives)---ablations show it is load-bearing for ranking alignment.
+  \end{itemize}
+  \vspace{0.2em}
+  \begin{alertblock}{Design principle}
+    Personas reflect \textbf{measured population structure}, not author stereotypes (mitigates toxicity risks from naive cultural prompts).
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Batched forward pass \& gaps}
+  \[
+    \mathbf{z}_{\text{base}},\mathbf{z}_1,\ldots,\mathbf{z}_N
+    = f_\theta(\mathbf{x};\varnothing,\mathbf{s}_1,\ldots,\mathbf{s}_N)
+  \]
+  Per-category logit temperatures $T_{\text{cat}}$ scale logits before gaps:
+  \[
+    \delta_i=\frac{z_{i,r}-z_{i,\ell}}{T_{\text{cat}}},\quad
+    \bar\delta=\frac1N\sum_i\delta_i,\quad
+    r_i=\delta_i-\delta_{\text{base}}.
+  \]
+  \textbf{Reward} $r_i$: how strongly persona $i$ pulls away from the neutral baseline on this scenario.
+\end{frame}
+
+\begin{frame}{Adaptive threshold $\tau^{(c)}$ (when to intervene)}
+  \begin{itemize}
+    \item Calibrate on \textbf{unlabelled} scenarios using only \textbf{inter-agent variance} statistics---\textbf{no} human AMCE access.
+    \item Target $\approx$35\% MPPI trigger rate (percentile on calibration variances); main paper uses \textbf{20\%/80\% held-out split} for $\tau$ vs.\ evaluation.
+    \item Robustness: held-out vs.\ in-distribution calibration yields $|\Delta\mathrm{JSD}|=0.0006$ (below bootstrap CI $\pm 0.004$).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Prospect Theory utility (per-agent)}
+  Cooperative decomposition with $\lambda_{\text{coop}}=0.7$:
+  \[
+    U_i(\epsilon_k)=
+    (1-\lambda_{\text{coop}})\,v(r_i\tilde\delta_k)
+    +\lambda_{\text{coop}}\,v(\bar r_{-i}\,\tilde\delta_k),\quad
+    \tilde\delta_k=\bar\delta+\epsilon_k.
+  \]
+  Classical PT value:
+  \[
+    v(x)=\begin{cases}x^\alpha & x\ge 0\\ -\kappa|x|^\beta & x<0\end{cases}
+    \quad (\alpha=\beta=0.88,\;\kappa=2.25).
+  \]
+\end{frame}
+
+\begin{frame}{Collective objective + MPPI weights}
+  \[
+    U_{\text{total}}(\epsilon_k)=\frac1N\sum_i U_i(\epsilon_k)
+    -\alpha_{\text{KL}}\frac{\epsilon_k^2}{2\sigma^2}
+    \quad(\alpha_{\text{KL}}=0.05).
+  \]
+  \[
+    w_k=\frac{\exp(U_{\text{total}}(\epsilon_k)/\beta)}{\sum_{k'}\exp(\ldots)},\qquad
+    \delta^\ast=\sum_k w_k\epsilon_k,\quad \epsilon_k\sim\mathcal N(0,\sigma^2).
+  \]
+  \textbf{Key design}: $\beta=T_{\text{dec}}=0.5$ aligns MPPI smoothing scale with the final sigmoid decision temperature.
+\end{frame}
+
+\begin{frame}{Positional debiasing}
+  \begin{itemize}
+    \item Evaluate each scenario twice: \textbf{original} vs.\ \textbf{swap} (LEFT$\leftrightarrow$RIGHT lanes + Group A$\leftrightarrow$B in native script).
+    \item Debiased gap: $\delta_i=\big(\delta_i^{\text{orig}}-\delta_i^{\text{swap}}\big)/2$ (mitigates recency / side bias).
+    \item Final: $p_{\text{spare}}=\sigma\big((\bar\delta+\delta^\ast)/T_{\text{dec}}\big)$.
+  \end{itemize}
+\end{frame}
+
+\section{Experiments}
+
+\begin{frame}{Benchmark, languages, preprocessing}
+  \begin{itemize}
+    \item \textbf{MultiTP}: 15 countries, native-language vignettes, 6 moral dimensions (Species, Gender, Age, Fitness, Social Value, Utilitarianism).
+    \item \textbf{12 languages} for scenarios; \textbf{English} \texttt{LEFT}/\texttt{RIGHT} tokens verified as single-token in each model vocabulary.
+    \item Preprocessing: dedup, quality filter (Utilitarianism edge cases), per-category cap, upsampling for stable AMCE---with \textbf{sensitivity suite} over configurations.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Models evaluated (six open-weight families)}
+  \centering\small
+  \begin{tabular}{llcc}
+    \toprule
+    \textbf{Model} & \textbf{Size} & \textbf{Mean JSD} Van.$\to$SWA & \textbf{Improv.} \\
+    \midrule
+    Qwen2.5-72B   & 72B  & $0.0859\to 0.0536$ & \gain{\textbf{+37.6\%}} \\
+    Llama-3.1-70B & 70B  & $0.0937\to 0.0612$ & \gain{+34.7\%} \\
+    Llama-3.1-8B  & 8B   & $0.0533\to 0.0436$ & \gain{+22.6\%} \\
+    Qwen2.5-7B    & 7B   & $0.0522\to 0.0426$ & \gain{+18.4\%} \\
+    Mistral-Large & 126B & $0.0457\to 0.0430$ & \gain{+5.8\%} \\
+    Qwen2.5-32B   & 32B  & $0.0632\to 0.0633$ & \loss{$-0.2\%$} \\
+    \bottomrule
+  \end{tabular}
+  \vspace{0.3em}
+
+  \footnotesize Mistral: high vanilla alignment $\Rightarrow$ smaller headroom. Qwen2.5-32B: \textbf{logit concentration} $\Rightarrow$ MPPI weights near uniform (diagnostic, not hidden failure).
+\end{frame}
+
+\begin{frame}{Baselines (Llama-3.1-70B)}
+  \centering\small
+  \begin{tabular}{lcc}
+    \toprule
+    \textbf{Method} & \textbf{Mean JSD} $\downarrow$ & \textbf{Pearson $r$} $\uparrow$ \\
+    \midrule
+    \textbf{SWA-MPPI} & \textbf{0.0612} & \textbf{0.384} \\
+    Country-tailored (B1) & 0.0680 & 0.233 \\
+    PRISM-style (B3) & 0.0699 & 0.148 \\
+    WVS profile (B2) & 0.0737 & 0.155 \\
+    Activation steering & 0.0877 & $-0.208$ \\
+    Vanilla & 0.0937 & $-0.026$ \\
+    \bottomrule
+  \end{tabular}
+\end{frame}
+
+\section{Mechanisms \& robustness}
+
+\begin{frame}{What creates the gain? (CS + Binary-ARGS)}
+  \small
+  \begin{itemize}
+    \item \textbf{Consensus-shift baselines} on $\bar\delta$: best is CS-Clamp; SWA-MPPI still wins by $\sim 0.003$ JSD $\Rightarrow$ residual explained by \textbf{PT asymmetry}, not WVS weighting alone.
+    \item \textbf{Binary-ARGS}: ARGS-PT matches SWA-MPPI kernel; ARGS-WVS can \emph{hurt} vs.\ uniform without PT asymmetry---isolates \textbf{Prospect Theory} as the mechanism.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{``Anglosphere paradox''}
+  \begin{itemize}
+    \item Largest JSD improvements often in \textbf{English-speaking} countries (e.g.\ AU/GB/US up to $\sim$+72--75\% JSD improvement on Qwen2.5-72B).
+    \item Interpretation: models can be \textbf{misaligned with local human AMCEs} even when English data is over-represented---RLHF-era priors do not guarantee country-level moral calibration.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Robustness (high level)}
+  \footnotesize
+  \begin{itemize}
+    \item \textbf{$\tau$}: held-out calibration vs.\ leakage---negligible aggregate JSD gap.
+    \item \textbf{Temperatures}: three sweeps, JSD spans $<0.010$; defaults conservative vs.\ best point.
+    \item \textbf{Dataset preprocessing}: six configs, aggregate JSD range $0.0034$.
+    \item \textbf{Qwen2.5-32B}: entropy-aware $\sigma$ confirms concentrated logits; explains MPPI degradation.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Ablations (Qwen2.5-72B, USA; indicative)}
+  \centering\small
+  \begin{tabular}{lcc}
+    \toprule
+    \textbf{Config} & \textbf{JSD} $\downarrow$ & \textbf{Pearson $r$} $\uparrow$ \\
+    \midrule
+    Full SWA-MPPI & \textbf{0.0425} & \textbf{0.724} \\
+    No MPPI (consensus only) & 0.0493 & 0.650 \\
+    Without utilitarian persona ($N{=}3$) & 0.0610 & 0.441 \\
+    Linear utility (no PT) & 0.0444 & 0.706 \\
+    \bottomrule
+  \end{tabular}
+\end{frame}
+
+\section{Takeaways}
+
+\begin{frame}{Contributions (summary)}
+  \begin{enumerate}
+    \item First \textbf{MPPI in logit space} for cross-cultural moral alignment, training-free.
+    \item Strong empirical gains on \textbf{70B-class} models (+34--38\% mean JSD), evaluated across \textbf{six} architectures; smaller models +18--23\%.
+    \item Clear \textbf{ablation hierarchy} (utilitarian $>$ MPPI $>$ debias $>$ PT).
+    \item Extensive \textbf{robustness + mechanistic} evidence ($\tau$, temps, data, CS, ARGS, entropy diagnostic).
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}{Limitations (honest)}
+  \small
+  \begin{itemize}
+    \item Binary forced-choice / single decision position---extension to multi-option or open-ended is non-trivial.
+    \item WVS personas are a proxy; sparse WVS coverage hurts some countries.
+    \item Hyperparameter validation used synthetic author-annotated proxy labels + transfer checks---real-data validation remains valuable.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{}
+  \centering
+  \vspace{2em}
+  {\Large Questions?}
+  \vspace{1.5em}
+
+  \normalsize
+  \texttt{SWA\_MPPI\_paper/paper\_revised.tex}
+\end{frame}
+
+\end{document}
