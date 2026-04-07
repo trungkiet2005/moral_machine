@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(pdflatex -interaction=nonstopmode paper_revised.tex)",
-      "Bash(bibtex paper_revised)"
+      "Bash(bibtex paper_revised)",
+      "Bash(wc -l src/*.py src/viz/*.py run_*.py setup_kaggle.py)",
+      "Bash(grep -E \"\\\\.py$|^d\")",
+      "Bash(wc -l d:/AI_RESEARCH/moral_machine/Coding/swa-mppi/src/viz/*.py)"
     ]
   }
 }

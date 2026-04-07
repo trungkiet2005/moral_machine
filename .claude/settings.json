@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc -l *.py experiment/*.py exeriment_cross_llm/*.py)",
+      "Bash(du -sh * .*)"
+    ]
+  }
+}
