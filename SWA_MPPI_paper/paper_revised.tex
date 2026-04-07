@@ -1,6 +1,6 @@
 % ============================================================
-% SWA-MPPI v3: Cross-Cultural Moral Alignment of LLMs
-% NeurIPS 2026 Submission -- REVISED VERSION
+% SWA-MPPI: Cross-Cultural Moral Alignment of LLMs
+% NeurIPS 2026 Submission
 % Compile: pdflatex -> bibtex -> pdflatex -> pdflatex
 % ============================================================
 \documentclass{article}
@@ -50,33 +50,30 @@
 % ============================================================
 \begin{abstract}
 % ============================================================
-Large language models inherit the moral intuitions of their predominantly Western
-training data, yet serve culturally diverse populations worldwide. No existing
-method can adapt an LLM's moral reasoning to a target culture \emph{at inference
-time} without labelled preference data or weight modification. We introduce
-\textbf{SWA-MPPI}, the first training-free framework for cross-cultural moral
-alignment that operates entirely in logit space. SWA-MPPI constructs an ensemble
-of culturally grounded persona agents from World Values Survey data, detects
-inter-persona disagreement as a signal of cultural contestation, and resolves it
-via a Prospect-Theory-weighted Model Predictive Path Integral (MPPI) update-a
-principled stochastic optimisation that balances private cultural utility with
-collective welfare. On the Multilingual Trolley Problem benchmark across 15
-countries, 12 native languages, and 6 moral dimensions, SWA-MPPI reduces
-Jensen-Shannon Distance to human moral preferences by \textbf{37.6\%}
-(Qwen2.5-72B) and \textbf{34.7\%} (Llama-3.1-70B), outperforming all prompting
-and activation-steering baselines by $\geq$10\% while operating on frozen weights
-with a single additional batched forward pass. Notably, the largest gains occur
-for Anglosphere countries ($+$72--75\%), revealing that RLHF-induced biases
-actively worsen alignment even for the best-represented populations. The framework
-is self-limiting: when the model is already well-calibrated, inter-persona
-consensus is high and no correction is applied. An extensive robustness
-suite-held-out $\tau$ calibration ($|\Delta\text{JSD}|{=}0.0006$ vs.\
-in-distribution), three temperature sweeps (JSD spans $<\!0.010$), six dataset
-configurations (range $0.0034$), four deterministic consensus-shift baselines, a
-Binary-ARGS adaptation, and an entropy-aware $\sigma$ diagnostic-isolates
-\emph{Prospect-Theory asymmetry} as the load-bearing mechanism and rules out
-hyperparameter or distributional confounding. Code available at
-\texttt{[repository]}.
+Large language models encode Western moral priors while deployed worldwide---yet
+aligning moral decisions to \emph{country-specific} human preferences usually
+requires fine-tuning, reward models, or labelled data we do not have at scale.
+We ask: can we steer moral choices \emph{at inference time}, on frozen weights,
+using only survey-grounded cultural structure? We introduce \textbf{SWA-MPPI}:
+World Values Survey personas disagree on contested dilemmas; that disagreement
+triggers a Prospect-Theory-weighted Model Predictive Path Integral (MPPI)
+update in logit space, with a minimal-KL, importance-weighted correction.
+We evaluate on MultiTP across 15 countries, 12 native languages, and six moral
+dimensions, spanning \textbf{six} open-weight models from 7B to 126B (Qwen2.5,
+Llama~3.1, Mistral-Large). The headline gains are on strong instruction-tuned
+70B-class backbones: mean Jensen--Shannon distance to human preferences drops
+by \textbf{37.6\%} (Qwen2.5-72B) and \textbf{34.7\%} (Llama-3.1-70B), beating
+prompting and activation-steering baselines by $\geq$10\% with one extra
+batched forward pass. Smaller Qwen/Llama models improve consistently
+(+18--23\%); Mistral-Large improves modestly (+5.8\%) from an already strong
+baseline; Qwen2.5-32B yields a negative headline delta that we trace to extreme
+logit concentration---a model-specific diagnostic, not a silent failure. The
+largest improvements cluster in Anglosphere countries ($+$72--75\% JSD),
+suggesting that RLHF-era alignment can still leave substantial mismatch even for
+well-represented populations. SWA-MPPI is self-limiting when personas already
+agree. Held-out $\tau$ calibration, temperature and dataset sweeps, and
+mechanistic baselines isolate \emph{Prospect-Theory asymmetry} as the
+load-bearing signal. Code: \texttt{[repository]}.
 \end{abstract}
 
 % ============================================================
@@ -141,16 +138,17 @@ effects.
         cross-cultural value alignment: a training-free framework combining
         WVS-grounded personas, adaptive conflict detection, and Prospect-Theory-weighted
         optimisation (\S\ref{sec:method}).
-  \item We demonstrate mean JSD reductions of \textbf{37.6\%} (Qwen2.5-72B) and
-        \textbf{34.7\%} (Llama-3.1-70B) across 15 countries, with gains reaching
-        $+$75\% for Anglosphere pairs, outperforming all baselines by $\geq$10\%
+  \item Across six models (7B--126B), we report mean JSD reductions up to
+        \textbf{37.6\%} (Qwen2.5-72B) and \textbf{34.7\%} (Llama-3.1-70B) on 15
+        countries, with gains reaching $+$75\% for Anglosphere pairs, and
+        outperform all baselines by $\geq$10\% on the 70B-class runs
         (\S\ref{sec:results}).
   \item We conduct systematic ablations revealing a clear component hierarchy:
         the utilitarian persona is most critical ($-$39.1\% relative Pearson without it),
         followed by MPPI ($+$15.9\% JSD), debiasing ($+$12.0\%), and Prospect Theory
         ($+$4.5\%) (\S\ref{sec:ablation}).
-  \item We provide an extensive Round-2 robustness suite that closes the gap to a
-        rigorous inference-time alignment study: (a) per-country held-out $\tau$
+  \item We provide an extensive robustness suite for inference-time alignment:
+        (a) per-country held-out $\tau$
         calibration on 15 countries shows $|\Delta\text{JSD}|{=}0.0006$ vs.\ in-distribution
         calibration (App.~\ref{app:tau_holdout}); (b) three temperature sweeps yield
         JSD spans below $0.010$ with defaults strictly more conservative than the best
@@ -200,6 +198,16 @@ modification, scaling poorly across 100+ countries. SWA-MPPI is the first
 \emph{training-free} method addressing multi-cultural calibration.
 \citet{sorensen2024roadmap} articulate the goal of pluralistic alignment, which
 SWA-MPPI operationalises concretely.
+
+\paragraph{Positioning against adjacent inference-time methods.}
+Recent methods such as DIFFPO-style policy-agnostic aligners, SWAI-style
+training-free logit steering, and SLED-style self-logit evolution demonstrate
+that post-hoc control at inference time is increasingly practical. Our scope is
+more specific: black-box, single-model, binary forced-choice moral decisions
+with country-conditioned persona grounding. Relative to structured multi-agent
+pipelines such as OG-MAR~\citep{ogmar2024}, SWA-MPPI trades ontology-level
+reasoning depth for lower deployment overhead (one additional batched forward
+pass and no extra trained aligner).
 
 \paragraph{MPPI and Prospect Theory.}
 MPPI~\citep{williams2017mppi} is a sampling-based stochastic optimal control algorithm
@@ -405,7 +413,8 @@ lists all hyperparameters (validation details in Appendix~\ref{app:hyperparams})
 
 \begin{table}[t]
 \caption{SWA-MPPI hyperparameters. PT parameters from \citet{kahneman1979prospect};
-others validated on a held-out synthetic set (Appendix~\ref{app:hyperparams}).}
+others validated on a held-out synthetic set with author proxy labels
+(Appendix~\ref{app:hyperparams}).}
 \label{tab:hyperparams}
 \centering\small
 \begin{tabular}{llll}
@@ -582,8 +591,8 @@ by 10.0\%. Activation steering performs \emph{below} vanilla, suggesting contras
 steering vectors interfere with moral reasoning on this benchmark.
 
 \paragraph{Isolating the active mechanism: deterministic shifts and Binary-ARGS.}
-To answer the reviewer question of whether MPPI's importance weighting is
-necessary at all, we add two new baseline families that share SWA-MPPI's
+To test whether MPPI's importance weighting is necessary, we compare against two
+new baseline families that share SWA-MPPI's
 infrastructure (batched multi-agent forward pass, two-pass debiasing) and differ
 only in the decoding rule (Appendices~\ref{app:cs_baseline}--\ref{app:args}).
 \textbf{Consensus shifts.} Four deterministic functionals of $\bar{\delta}$
@@ -628,7 +637,9 @@ Vanilla               & $.0937 \pm .006$ & $-$0.026 & +34.7\% \\
 Table~\ref{tab:results_qwen}: SWA-MPPI improves JSD in 13/15 countries.
 \textbf{The Anglosphere paradox:} the largest gains occur for Australia (+75.4\%),
 Great Britain (+72.2\%), and USA (+71.1\%)-precisely the English-speaking
-populations one might expect to be best served. Their high vanilla JSD ($\approx$0.10--0.11) reflects RLHF-induced biases (extreme animal protection, strong
+populations one might expect to be best served. Their high vanilla JSD
+($\approx$0.10--0.11) is consistent with model-level moral priors (including
+possible RLHF effects, e.g., extreme animal protection and strong
 gender-neutral stances) that diverge from average human preferences.
 
 \textbf{Germany (ceiling case):} vanilla JSD = 0.0603 with $r = 0.845$-already
@@ -680,14 +691,14 @@ Australia   & en & .1047 & \textbf{.0258} & 0.438 & 0.841 & $-$.079 & \gain{+75.
 \subsection{Robustness Suite at a Glance}
 \label{sec:robustness}
 
-Table~\ref{tab:robustness_summary} consolidates every robustness experiment we
-ran in response to reviewer concerns. Each row reports an empirical claim, the
+Table~\ref{tab:robustness_summary} consolidates our robustness experiments.
+Each row reports an empirical claim, the
 test that probes it, the threshold above which the claim would fail, and the
 observed value. All eleven tests pass; the one residual failure mode
 (Qwen2.5-32B logit concentration) is fully diagnosed at the logit level.
 
 \begin{table}[h]\centering\small
-\caption{Round-2 robustness suite. Each test independently probes one assumption
+\caption{Robustness suite. Each test independently probes one assumption
 behind SWA-MPPI; the bootstrap confidence interval on JSD is $\pm 0.004$.}
 \label{tab:robustness_summary}
 \setlength{\tabcolsep}{4pt}
@@ -782,10 +793,11 @@ objective (Eq.~\ref{eq:util_total}) prescribes.
 
 \paragraph{The Anglosphere paradox.}
 The largest gains occur for English-speaking countries-precisely those
-best-represented in training data. This reveals that RLHF introduces specific moral
-biases (extreme animal protection, strong gender-neutral stances) that \emph{actively
-worsen} alignment with even Western human preferences, and SWA-MPPI's WVS-derived
-personas successfully counterbalance these.
+best-represented in training data. This pattern suggests that current alignment
+pipelines can still encode specific moral priors (e.g., extreme animal
+protection and strong gender-neutral stances) that reduce agreement with
+country-level human preferences, and SWA-MPPI's WVS-derived personas partially
+counterbalance these effects.
 
 \paragraph{Cross-model failure patterns.}
 Per-country results (Appendix~\ref{app:percountry_all}) reveal that failure modes
@@ -810,7 +822,12 @@ model, encoding an assumption that persona shifts approximate human
 directions-validated at aggregate level but unverified per-dimension. The WVS
 grounding encodes surveyed averages at a specific historical moment
 (Wave~7, $\sim$2017--2022); temporal staleness and limited WVS coverage for some
-countries constrain applicability. Extended limitations are in
+countries constrain applicability. Hyperparameter validation uses a synthetic,
+author-annotated set (Appendix~\ref{app:hyperparams}), which may introduce
+annotation bias despite transfer checks on a disjoint MultiTP subset. Finally,
+although we stress-test multiple preprocessing choices, this version does not yet
+include a full ``as-is'' (no capping/upsampling/filtering) MultiTP evaluation,
+limiting direct comparability with some prior reports. Extended limitations are in
 Appendix~\ref{app:limitations}.
 
 \paragraph{Broader impact and safeguards.}
@@ -843,8 +860,9 @@ moral alignment. By grounding persona construction in WVS data, exploiting
 inter-persona disagreement as a trigger signal, and applying Prospect-Theory-weighted
 MPPI in logit space, SWA-MPPI reduces JSD to human preferences by 34--38\% on 70B
 models, outperforms all baselines, and gracefully refrains from correction when
-alignment is already high. The Anglosphere paradox illustrates how RLHF biases
-worsen alignment even for well-represented populations, and a twelve-test
+alignment is already high. The Anglosphere paradox indicates that current
+alignment pipelines can still leave substantial mismatch even for
+well-represented populations, and a twelve-test
 robustness suite---held-out $\tau$, three temperature sweeps, six dataset
 configurations, four deterministic shift baselines, three Binary-ARGS rewards,
 and an entropy-aware $\sigma$ diagnostic---rules out hyperparameter and
@@ -1021,6 +1039,9 @@ Qwen2.5-72B. Transferability was verified on a disjoint 50-scenario MultiTP Engl
 subset: performance within 1.2\% relative JSD of oracle-tuned configuration.
 $T_{\text{cat}}$ values reflect empirical logit magnitude distributions: Species
 and Gender produce systematically larger gaps, requiring higher temperatures.
+Because this tuning pool is synthetic and author-annotated, residual bias is
+possible; we therefore report broad robustness sweeps (Appendix~\ref{app:temp_sensitivity},
+Appendix~\ref{app:dataset_sens}) to show conclusions are stable beyond one tuned point.
 
 \section{Temperature Sensitivity}
 \label{app:temp_sensitivity}
@@ -1084,8 +1105,8 @@ operating point.
 
 Up-sampling duplicates scenarios without modification, preserving AMCE signal while
 reducing variance. Category capping prevents dimension dominance. Side balancing
-enables effective debiasing. To answer the reviewer concern that these choices
-could distort the effective evaluation distribution, we evaluate \emph{six}
+enables effective debiasing. To evaluate whether these choices alter the effective
+evaluation distribution, we compare \emph{six}
 preprocessing configurations on 10 representative countries (USA, DEU, CHN, JPN,
 BRA, VNM, GBR, KOR, RUS, NGA) using Llama-3.1-70B.
 
@@ -1546,7 +1567,7 @@ through Eq.~\ref{eq:util_total}.
 \section{Entropy-Aware Adaptive $\sigma$ for Qwen2.5-32B}
 \label{app:adaptive_sigma}
 
-We test whether an entropy-aware adaptive $\sigma$ can address the Qwen2.5-32B
+We study whether an entropy-aware adaptive $\sigma$ can address the Qwen2.5-32B
 failure mode (Section~\ref{sec:results}). At each scenario we measure the Shannon
 entropy $H$ of the top-50 token distribution at the decision position and set
 $\sigma=\sigma_\text{base}\cdot\text{clip}(H/H_\text{ref},\,0.2,\,5.0)$ with

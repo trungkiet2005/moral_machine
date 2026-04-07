@@ -1,4 +1,4 @@
-\begin{thebibliography}{32}
+\begin{thebibliography}{33}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -193,22 +193,28 @@ T.~Sorensen, J.~Moore, J.~Fisher, M.~Gordon, N.~Mireshghallah, C.~M. Rytting,
 
 \bibitem[{Unsloth AI}(2024)]{unsloth2024}
 {Unsloth AI}.
-\newblock Unsloth: Fast {LLM} fine-tuning and inference, 2024.
-\newblock URL \url{https://github.com/unslothai/unsloth}.
+\newblock Unsloth: Fast {LLM} fine-tuning and inference.
+\newblock \url{https://github.com/unslothai/unsloth}, 2024.
 
 \bibitem[Williams et~al.(2018)Williams, Drews, Goldfain, Rehg, and
   Theodorou]{williams2017mppi}
 G.~Williams, P.~Drews, B.~Goldfain, J.~M. Rehg, and E.~A. Theodorou.
 \newblock Information-theoretic model predictive control: Theory and
   applications to autonomous driving.
-\newblock In \emph{IEEE Transactions on Robotics}, volume~34, pages 1603--1622.
-  IEEE, 2018.
+\newblock \emph{IEEE Transactions on Robotics}, 34\penalty0 (6):\penalty0
+  1603--1622, 2018.
 
 \bibitem[Yao et~al.(2024)]{yao2024caredio}
 J.~Yao et~al.
 \newblock {CAReDiO}: Cultural alignment of llm via reinforcement learning from
   diverse human feedback with direct preference optimization.
 \newblock \emph{arXiv preprint arXiv:2410.18203}, 2024.
+
+\bibitem[Zhang et~al.(2024)]{ogmar2024}
+W.~Zhang et~al.
+\newblock {OG-MAR}: Ontology-guided moral alignment and reasoning in large
+  language models.
+\newblock \emph{arXiv preprint arXiv:2406.04264}, 2024.
 
 \bibitem[Zou et~al.(2023)Zou, Phan, Chen, Campbell, Guo,
   et~al.]{zou2023representation}

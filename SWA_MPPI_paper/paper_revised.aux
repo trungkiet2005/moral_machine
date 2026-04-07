@@ -6,13 +6,13 @@
 \citation{henrich2010weirdest}
 \citation{jin2025multitp}
 \citation{jin2025multitp}
-\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
-\newlabel{sec:intro}{{1}{1}{Introduction}{section.1}{}}
 \citation{bai2022constitutional,ouyang2022instructgpt}
 \citation{jin2025multitp}
 \citation{arditi2025refusal,zou2023representation}
 \citation{khanov2024args,mudgal2024controlled}
 \citation{li2024culturemanager,yao2024caredio}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\newlabel{sec:intro}{{1}{1}{Introduction}{section.1}{}}
 \citation{awad2018moral,kleiman2017learning}
 \citation{haerpfer2022wvs}
 \citation{williams2017mppi}
@@ -26,28 +26,29 @@
 \citation{durmus2023global}
 \citation{aakanksha2024evalmor}
 \citation{myung2024carb}
+\citation{santurkar2023opinions}
+\citation{ryan2024unintended}
+\citation{deshpande2023toxicity}
 \@writefile{toc}{\contentsline {paragraph}{Contributions.}{2}{section*.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{2}{section.2}\protected@file@percent }
 \newlabel{sec:related}{{2}{2}{Related Work}{section.2}{}}
 \@writefile{toc}{\contentsline {paragraph}{Cross-cultural moral benchmarks.}{2}{section*.3}\protected@file@percent }
-\citation{santurkar2023opinions}
-\citation{ryan2024unintended}
-\citation{deshpande2023toxicity}
 \citation{arditi2025refusal,zou2023representation}
 \citation{khanov2024args}
 \citation{mudgal2024controlled}
 \citation{li2024culturemanager}
 \citation{yao2024caredio}
 \citation{sorensen2024roadmap}
+\citation{ogmar2024}
 \citation{williams2017mppi}
 \citation{huang2024mppi}
 \citation{kahneman1979prospect}
 \citation{awad2018moral}
 \citation{haerpfer2022wvs}
-\citation{deshpande2023toxicity}
 \@writefile{toc}{\contentsline {paragraph}{Cross-cultural LLM evaluation.}{3}{section*.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Inference-time alignment.}{3}{section*.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{MPPI and Prospect Theory.}{3}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Positioning against adjacent inference-time methods.}{3}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{MPPI and Prospect Theory.}{3}{section*.7}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {3}Method: SWA-MPPI}{3}{section.3}\protected@file@percent }
 \newlabel{sec:method}{{3}{3}{Method: SWA-MPPI}{section.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Problem Formulation}{3}{subsection.3.1}\protected@file@percent }
@@ -55,6 +56,7 @@
 \newlabel{eq:mpr}{{1}{3}{Problem Formulation}{equation.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Cultural Persona Construction}{3}{subsection.3.2}\protected@file@percent }
 \newlabel{sec:method:personas}{{3.2}{3}{Cultural Persona Construction}{subsection.3.2}{}}
+\citation{deshpande2023toxicity}
 \citation{kahneman1979prospect}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Batched Evaluation and Logit Extraction}{4}{subsection.3.3}\protected@file@percent }
 \newlabel{sec:method:eval}{{3.3}{4}{Batched Evaluation and Logit Extraction}{subsection.3.3}{}}
@@ -66,10 +68,10 @@
 \newlabel{eq:tau}{{5}{4}{Adaptive Conflict Detection}{equation.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.5}Prospect-Theory-Weighted MPPI Optimisation}{4}{subsection.3.5}\protected@file@percent }
 \newlabel{sec:method:mppi}{{3.5}{4}{Prospect-Theory-Weighted MPPI Optimisation}{subsection.3.5}{}}
-\@writefile{toc}{\contentsline {paragraph}{Per-agent cooperative utility.}{4}{section*.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Per-agent cooperative utility.}{4}{section*.8}\protected@file@percent }
 \newlabel{eq:util_agent}{{6}{4}{Per-agent cooperative utility}{equation.6}{}}
 \newlabel{eq:prospect}{{7}{4}{Per-agent cooperative utility}{equation.7}{}}
-\@writefile{toc}{\contentsline {paragraph}{Collective utility with KL regularisation.}{4}{section*.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Collective utility with KL regularisation.}{4}{section*.9}\protected@file@percent }
 \newlabel{eq:util_total}{{8}{4}{Collective utility with KL regularisation}{equation.8}{}}
 \citation{liu2024lost}
 \citation{kahneman1979prospect}
@@ -80,9 +82,9 @@
 \@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces SWA-MPPI Inference for Scenario $\mathbf  {x}$ in Country $c$}}{5}{algorithm.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
 \newlabel{alg:swa}{{1}{5}{SWA-MPPI Inference for Scenario $\mathbf {x}$ in Country $c$}{algorithm.1}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces SWA-MPPI hyperparameters. PT parameters from \citet  {kahneman1979prospect}; others validated on a held-out synthetic set (Appendix~\ref {app:hyperparams}).}}{5}{table.caption.10}\protected@file@percent }
-\newlabel{tab:hyperparams}{{1}{5}{SWA-MPPI hyperparameters. PT parameters from \citet {kahneman1979prospect}; others validated on a held-out synthetic set (Appendix~\ref {app:hyperparams})}{table.caption.10}{}}
-\@writefile{toc}{\contentsline {paragraph}{MPPI update.}{5}{section*.9}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces SWA-MPPI hyperparameters. PT parameters from \citet  {kahneman1979prospect}; others validated on a held-out synthetic set with author proxy labels (Appendix~\ref {app:hyperparams}).}}{5}{table.caption.11}\protected@file@percent }
+\newlabel{tab:hyperparams}{{1}{5}{SWA-MPPI hyperparameters. PT parameters from \citet {kahneman1979prospect}; others validated on a held-out synthetic set with author proxy labels (Appendix~\ref {app:hyperparams})}{table.caption.11}{}}
+\@writefile{toc}{\contentsline {paragraph}{MPPI update.}{5}{section*.10}\protected@file@percent }
 \newlabel{eq:mppi}{{9}{5}{MPPI update}{equation.9}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.6}Positional Debiasing and Final Prediction}{5}{subsection.3.6}\protected@file@percent }
 \newlabel{sec:method:debias}{{3.6}{5}{Positional Debiasing and Final Prediction}{subsection.3.6}{}}
@@ -92,10 +94,10 @@
 \citation{unsloth2024}
 \citation{kirk2024prism}
 \citation{arditi2025refusal}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {SWA-MPPI pipeline.} \textbf  {Left:} WVS-grounded persona construction (3 age cohorts + utilitarian). \textbf  {Middle:} Batched forward pass with positional debiasing. \textbf  {Right:} MPPI optimisation when inter-persona variance exceeds $\tau ^{(c)}$. }}{6}{figure.caption.11}\protected@file@percent }
-\newlabel{fig:overview}{{1}{6}{\textbf {SWA-MPPI pipeline.} \textbf {Left:} WVS-grounded persona construction (3 age cohorts + utilitarian). \textbf {Middle:} Batched forward pass with positional debiasing. \textbf {Right:} MPPI optimisation when inter-persona variance exceeds $\tau ^{(c)}$}{figure.caption.11}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces The six moral dimensions in MultiTP.}}{6}{table.caption.12}\protected@file@percent }
-\newlabel{tab:categories}{{2}{6}{The six moral dimensions in MultiTP}{table.caption.12}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {SWA-MPPI pipeline.} \textbf  {Left:} WVS-grounded persona construction (3 age cohorts + utilitarian). \textbf  {Middle:} Batched forward pass with positional debiasing. \textbf  {Right:} MPPI optimisation when inter-persona variance exceeds $\tau ^{(c)}$. }}{6}{figure.caption.12}\protected@file@percent }
+\newlabel{fig:overview}{{1}{6}{\textbf {SWA-MPPI pipeline.} \textbf {Left:} WVS-grounded persona construction (3 age cohorts + utilitarian). \textbf {Middle:} Batched forward pass with positional debiasing. \textbf {Right:} MPPI optimisation when inter-persona variance exceeds $\tau ^{(c)}$}{figure.caption.12}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces The six moral dimensions in MultiTP.}}{6}{table.caption.13}\protected@file@percent }
+\newlabel{tab:categories}{{2}{6}{The six moral dimensions in MultiTP}{table.caption.13}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {4}Experimental Setup}{6}{section.4}\protected@file@percent }
 \newlabel{sec:experiments}{{4}{6}{Experimental Setup}{section.4}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Dataset}{6}{subsection.4.1}\protected@file@percent }
@@ -103,8 +105,8 @@
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Models}{6}{subsection.4.2}\protected@file@percent }
 \newlabel{sec:exp:models}{{4.2}{6}{Models}{subsection.4.2}{}}
 \citation{khanov2024args}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Cross-model comparison. Bootstrap 95\% CIs; differences $>$$\pm $0.004 significant at $p{<}0.05$.}}{7}{table.caption.13}\protected@file@percent }
-\newlabel{tab:model_summary}{{3}{7}{Cross-model comparison. Bootstrap 95\% CIs; differences $>$$\pm $0.004 significant at $p{<}0.05$}{table.caption.13}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Cross-model comparison. Bootstrap 95\% CIs; differences $>$$\pm $0.004 significant at $p{<}0.05$.}}{7}{table.caption.14}\protected@file@percent }
+\newlabel{tab:model_summary}{{3}{7}{Cross-model comparison. Bootstrap 95\% CIs; differences $>$$\pm $0.004 significant at $p{<}0.05$}{table.caption.14}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Baselines}{7}{subsection.4.3}\protected@file@percent }
 \newlabel{sec:exp:baselines}{{4.3}{7}{Baselines}{subsection.4.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.4}Metrics}{7}{subsection.4.4}\protected@file@percent }
@@ -113,30 +115,28 @@
 \newlabel{sec:results}{{5}{7}{Results}{section.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Cross-Model Comparison}{7}{subsection.5.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Baseline Comparison on Llama-3.1-70B}{7}{subsection.5.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Isolating the active mechanism: deterministic shifts and Binary-ARGS.}{7}{section*.14}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Baseline comparison on Llama-3.1-70B across 15 countries.}}{8}{table.caption.15}\protected@file@percent }
-\newlabel{tab:baselines}{{4}{8}{Baseline comparison on Llama-3.1-70B across 15 countries}{table.caption.15}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Per-country results for \textbf  {Qwen2.5-72B-Instruct}.}}{8}{table.caption.16}\protected@file@percent }
-\newlabel{tab:results_qwen}{{5}{8}{Per-country results for \textbf {Qwen2.5-72B-Instruct}}{table.caption.16}{}}
+\@writefile{toc}{\contentsline {paragraph}{Isolating the active mechanism: deterministic shifts and Binary-ARGS.}{7}{section*.15}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Baseline comparison on Llama-3.1-70B across 15 countries.}}{8}{table.caption.16}\protected@file@percent }
+\newlabel{tab:baselines}{{4}{8}{Baseline comparison on Llama-3.1-70B across 15 countries}{table.caption.16}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Per-country results for \textbf  {Qwen2.5-72B-Instruct}.}}{8}{table.caption.17}\protected@file@percent }
+\newlabel{tab:results_qwen}{{5}{8}{Per-country results for \textbf {Qwen2.5-72B-Instruct}}{table.caption.17}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Per-Country Results: Qwen2.5-72B}{8}{subsection.5.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Robustness Suite at a Glance}{9}{subsection.5.4}\protected@file@percent }
 \newlabel{sec:robustness}{{5.4}{9}{Robustness Suite at a Glance}{subsection.5.4}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Round-2 robustness suite. Each test independently probes one assumption behind SWA-MPPI; the bootstrap confidence interval on JSD is $\pm 0.004$.}}{9}{table.caption.17}\protected@file@percent }
-\newlabel{tab:robustness_summary}{{6}{9}{Round-2 robustness suite. Each test independently probes one assumption behind SWA-MPPI; the bootstrap confidence interval on JSD is $\pm 0.004$}{table.caption.17}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Robustness suite. Each test independently probes one assumption behind SWA-MPPI; the bootstrap confidence interval on JSD is $\pm 0.004$.}}{9}{table.caption.18}\protected@file@percent }
+\newlabel{tab:robustness_summary}{{6}{9}{Robustness suite. Each test independently probes one assumption behind SWA-MPPI; the bootstrap confidence interval on JSD is $\pm 0.004$}{table.caption.18}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {6}Ablation Study}{9}{section.6}\protected@file@percent }
 \newlabel{sec:ablation}{{6}{9}{Ablation Study}{section.6}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {7}Discussion}{9}{section.7}\protected@file@percent }
 \newlabel{sec:discussion}{{7}{9}{Discussion}{section.7}{}}
-\@writefile{toc}{\contentsline {paragraph}{Key findings.}{9}{section*.19}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{What is doing the work?}{9}{section*.20}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Ablation on Qwen2.5-72B, USA (342 scenarios). Full system: JSD = 0.0425, $r$ = 0.724.}}{10}{table.caption.18}\protected@file@percent }
-\newlabel{tab:ablation}{{7}{10}{Ablation on Qwen2.5-72B, USA (342 scenarios). Full system: JSD = 0.0425, $r$ = 0.724}{table.caption.18}{}}
-\@writefile{toc}{\contentsline {paragraph}{The Anglosphere paradox.}{10}{section*.21}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Cross-model failure patterns.}{10}{section*.22}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Limitations.}{10}{section*.23}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Broader impact and safeguards.}{10}{section*.24}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{10}{section.8}\protected@file@percent }
-\newlabel{sec:conclusion}{{8}{10}{Conclusion}{section.8}{}}
+\@writefile{toc}{\contentsline {paragraph}{Key findings.}{9}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{What is doing the work?}{9}{section*.21}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Ablation on Qwen2.5-72B, USA (342 scenarios). Full system: JSD = 0.0425, $r$ = 0.724.}}{10}{table.caption.19}\protected@file@percent }
+\newlabel{tab:ablation}{{7}{10}{Ablation on Qwen2.5-72B, USA (342 scenarios). Full system: JSD = 0.0425, $r$ = 0.724}{table.caption.19}{}}
+\@writefile{toc}{\contentsline {paragraph}{The Anglosphere paradox.}{10}{section*.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Cross-model failure patterns.}{10}{section*.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Limitations.}{10}{section*.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Broader impact and safeguards.}{10}{section*.25}\protected@file@percent }
 \citation{jin2025multitp}
 \citation{awad2018moral}
 \bibstyle{abbrvnat}
@@ -153,6 +153,8 @@
 \bibcite{henrich2010weirdest}{{10}{2010}{{Henrich et~al.}}{{Henrich, Heine, and Norenzayan}}}
 \bibcite{huang2024mppi}{{11}{2024}{{Huang et~al.}}{{Huang, Chen, Lyu, et~al.}}}
 \bibcite{jin2022exceptions}{{12}{2022}{{Jin et~al.}}{{Jin, Levine, Gonzalez~Adauto, Kamal, Sap, Sachan, Mihalcea, Tenenbaum, and Sch{\"o}lkopf}}}
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{11}{section.8}\protected@file@percent }
+\newlabel{sec:conclusion}{{8}{11}{Conclusion}{section.8}{}}
 \bibcite{jin2025multitp}{{13}{2025}{{Jin et~al.}}{{Jin, Kleiman-Weiner, Piatti, Levine, Liu, Gonzalez, Ortu, Strausz, Sachan, Mihalcea, Choi, and Sch{\"o}lkopf}}}
 \bibcite{kahneman1979prospect}{{14}{1979}{{Kahneman and Tversky}}{{}}}
 \bibcite{khanov2024args}{{15}{2024}{{Khanov et~al.}}{{Khanov, Burapacheep, and Li}}}
@@ -172,98 +174,99 @@
 \bibcite{unsloth2024}{{29}{2024}{{Unsloth AI}}{{}}}
 \bibcite{williams2017mppi}{{30}{2018}{{Williams et~al.}}{{Williams, Drews, Goldfain, Rehg, and Theodorou}}}
 \bibcite{yao2024caredio}{{31}{2024}{{Yao et~al.}}{{}}}
-\bibcite{zou2023representation}{{32}{2023}{{Zou et~al.}}{{Zou, Phan, Chen, Campbell, Guo, et~al.}}}
+\bibcite{ogmar2024}{{32}{2024}{{Zhang et~al.}}{{}}}
+\bibcite{zou2023representation}{{33}{2023}{{Zou et~al.}}{{Zou, Phan, Chen, Campbell, Guo, et~al.}}}
 \citation{jin2025multitp}
 \citation{awad2018moral}
-\@writefile{toc}{\contentsline {section}{\numberline {A}AMCE Estimation Details}{13}{appendix.A}\protected@file@percent }
-\newlabel{app:amce}{{A}{13}{AMCE Estimation Details}{appendix.A}{}}
-\@writefile{toc}{\contentsline {paragraph}{Binary dimensions.}{13}{section*.27}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Utilitarianism dimension.}{13}{section*.28}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Human AMCE scale.}{13}{section*.29}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Consistency.}{13}{section*.30}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {B}Persona Construction Details}{13}{appendix.B}\protected@file@percent }
-\newlabel{app:personas}{{B}{13}{Persona Construction Details}{appendix.B}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Example Personas}{13}{subsection.B.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}WVS Data Processing Pipeline}{13}{subsection.B.2}\protected@file@percent }
-\newlabel{app:wvs_pipeline}{{B.2}{13}{WVS Data Processing Pipeline}{subsection.B.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}AMCE Estimation Details}{14}{appendix.A}\protected@file@percent }
+\newlabel{app:amce}{{A}{14}{AMCE Estimation Details}{appendix.A}{}}
+\@writefile{toc}{\contentsline {paragraph}{Binary dimensions.}{14}{section*.28}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Utilitarianism dimension.}{14}{section*.29}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Human AMCE scale.}{14}{section*.30}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Consistency.}{14}{section*.31}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}Persona Construction Details}{14}{appendix.B}\protected@file@percent }
+\newlabel{app:personas}{{B}{14}{Persona Construction Details}{appendix.B}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Example Personas}{14}{subsection.B.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}WVS Data Processing Pipeline}{14}{subsection.B.2}\protected@file@percent }
+\newlabel{app:wvs_pipeline}{{B.2}{14}{WVS Data Processing Pipeline}{subsection.B.2}{}}
 \citation{awad2018moral}
 \citation{williams2017mppi}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}WVS-to-Trolley Dimension Linkage}{14}{subsection.B.3}\protected@file@percent }
-\newlabel{app:wvs_linkage}{{B.3}{14}{WVS-to-Trolley Dimension Linkage}{subsection.B.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {C}MPPI Theoretical Justification}{14}{appendix.C}\protected@file@percent }
-\newlabel{app:mppi_theory}{{C}{14}{MPPI Theoretical Justification}{appendix.C}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Degenerate but Principled Stochastic Optimal Control}{14}{subsection.C.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Comparison with Simpler Alternatives}{14}{subsection.C.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {D}Hyperparameter Validation}{14}{appendix.D}\protected@file@percent }
-\newlabel{app:hyperparams}{{D}{14}{Hyperparameter Validation}{appendix.D}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {E}Temperature Sensitivity}{15}{appendix.E}\protected@file@percent }
-\newlabel{app:temp_sensitivity}{{E}{15}{Temperature Sensitivity}{appendix.E}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Temperature sensitivity. Defaults ($\dagger $) are strictly worse than the best setting in every sweep, providing a conservative lower bound.}}{15}{table.caption.31}\protected@file@percent }
-\newlabel{tab:temperature_sensitivity}{{8}{15}{Temperature sensitivity. Defaults ($\dagger $) are strictly worse than the best setting in every sweep, providing a conservative lower bound}{table.caption.31}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {F}Dataset Preprocessing and Sensitivity}{15}{appendix.F}\protected@file@percent }
-\newlabel{app:dataset}{{F}{15}{Dataset Preprocessing and Sensitivity}{appendix.F}{}}
-\newlabel{app:dataset_sens}{{F}{15}{Dataset Preprocessing and Sensitivity}{appendix.F}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Per-country dataset sensitivity. JSD range = 0.0034 (aggregate) and $<0.010$ in 9/10 countries; the only exception is RUS at $0.013$, driven by augmentation sensitivity in the rare Species/Utilitarianism categories. D0 is retained as default.}}{16}{table.caption.32}\protected@file@percent }
-\newlabel{tab:dataset_sens}{{9}{16}{Per-country dataset sensitivity. JSD range = 0.0034 (aggregate) and $<0.010$ in 9/10 countries; the only exception is RUS at $0.013$, driven by augmentation sensitivity in the rare Species/Utilitarianism categories. D0 is retained as default}{table.caption.32}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {G}Held-Out $\tau $ Calibration}{16}{appendix.G}\protected@file@percent }
-\newlabel{app:calibration}{{G}{16}{Held-Out $\tau $ Calibration}{appendix.G}{}}
-\newlabel{app:tau_holdout}{{G}{16}{Held-Out $\tau $ Calibration}{appendix.G}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Per-country held-out $\tau $ calibration. $|\Delta \text  {JSD}|$ remains below the bootstrap CI ($\pm 0.004$) in all 15 countries; held-out $\tau $ is strictly more conservative (mean $\tau _B/\tau _A=1.33$) yet alignment is unchanged.}}{16}{table.caption.33}\protected@file@percent }
-\newlabel{tab:tau_holdout_country}{{10}{16}{Per-country held-out $\tau $ calibration. $|\Delta \text {JSD}|$ remains below the bootstrap CI ($\pm 0.004$) in all 15 countries; held-out $\tau $ is strictly more conservative (mean $\tau _B/\tau _A=1.33$) yet alignment is unchanged}{table.caption.33}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {H}Cross-Lingual Token Elicitation}{16}{appendix.H}\protected@file@percent }
-\newlabel{app:token_elicitation}{{H}{16}{Cross-Lingual Token Elicitation}{appendix.H}{}}
-\@writefile{toc}{\contentsline {paragraph}{Native-language prompting system.}{16}{section*.34}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}WVS-to-Trolley Dimension Linkage}{15}{subsection.B.3}\protected@file@percent }
+\newlabel{app:wvs_linkage}{{B.3}{15}{WVS-to-Trolley Dimension Linkage}{subsection.B.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {C}MPPI Theoretical Justification}{15}{appendix.C}\protected@file@percent }
+\newlabel{app:mppi_theory}{{C}{15}{MPPI Theoretical Justification}{appendix.C}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Degenerate but Principled Stochastic Optimal Control}{15}{subsection.C.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Comparison with Simpler Alternatives}{15}{subsection.C.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {D}Hyperparameter Validation}{15}{appendix.D}\protected@file@percent }
+\newlabel{app:hyperparams}{{D}{15}{Hyperparameter Validation}{appendix.D}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {E}Temperature Sensitivity}{16}{appendix.E}\protected@file@percent }
+\newlabel{app:temp_sensitivity}{{E}{16}{Temperature Sensitivity}{appendix.E}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces Temperature sensitivity. Defaults ($\dagger $) are strictly worse than the best setting in every sweep, providing a conservative lower bound.}}{16}{table.caption.32}\protected@file@percent }
+\newlabel{tab:temperature_sensitivity}{{8}{16}{Temperature sensitivity. Defaults ($\dagger $) are strictly worse than the best setting in every sweep, providing a conservative lower bound}{table.caption.32}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {F}Dataset Preprocessing and Sensitivity}{16}{appendix.F}\protected@file@percent }
+\newlabel{app:dataset}{{F}{16}{Dataset Preprocessing and Sensitivity}{appendix.F}{}}
+\newlabel{app:dataset_sens}{{F}{16}{Dataset Preprocessing and Sensitivity}{appendix.F}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces Per-country dataset sensitivity. JSD range = 0.0034 (aggregate) and $<0.010$ in 9/10 countries; the only exception is RUS at $0.013$, driven by augmentation sensitivity in the rare Species/Utilitarianism categories. D0 is retained as default.}}{17}{table.caption.33}\protected@file@percent }
+\newlabel{tab:dataset_sens}{{9}{17}{Per-country dataset sensitivity. JSD range = 0.0034 (aggregate) and $<0.010$ in 9/10 countries; the only exception is RUS at $0.013$, driven by augmentation sensitivity in the rare Species/Utilitarianism categories. D0 is retained as default}{table.caption.33}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {G}Held-Out $\tau $ Calibration}{17}{appendix.G}\protected@file@percent }
+\newlabel{app:calibration}{{G}{17}{Held-Out $\tau $ Calibration}{appendix.G}{}}
+\newlabel{app:tau_holdout}{{G}{17}{Held-Out $\tau $ Calibration}{appendix.G}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Per-country held-out $\tau $ calibration. $|\Delta \text  {JSD}|$ remains below the bootstrap CI ($\pm 0.004$) in all 15 countries; held-out $\tau $ is strictly more conservative (mean $\tau _B/\tau _A=1.33$) yet alignment is unchanged.}}{17}{table.caption.34}\protected@file@percent }
+\newlabel{tab:tau_holdout_country}{{10}{17}{Per-country held-out $\tau $ calibration. $|\Delta \text {JSD}|$ remains below the bootstrap CI ($\pm 0.004$) in all 15 countries; held-out $\tau $ is strictly more conservative (mean $\tau _B/\tau _A=1.33$) yet alignment is unchanged}{table.caption.34}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {H}Cross-Lingual Token Elicitation}{17}{appendix.H}\protected@file@percent }
+\newlabel{app:token_elicitation}{{H}{17}{Cross-Lingual Token Elicitation}{appendix.H}{}}
+\@writefile{toc}{\contentsline {paragraph}{Native-language prompting system.}{17}{section*.35}\protected@file@percent }
 \citation{arditi2025refusal}
 \citation{khanov2024args}
 \citation{mudgal2024controlled}
-\@writefile{toc}{\contentsline {paragraph}{Token verification.}{17}{section*.35}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {I}Baseline Implementation Details}{17}{appendix.I}\protected@file@percent }
-\newlabel{app:baselines}{{I}{17}{Baseline Implementation Details}{appendix.I}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {I.1}Activation Steering}{17}{subsection.I.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Sensitivity analysis and fairness considerations.}{17}{section*.36}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {I.2}ARGS and Controlled Decoding: from Incompatible to Reformulated}{17}{subsection.I.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {J}Detailed Ablation Analysis}{17}{appendix.J}\protected@file@percent }
-\newlabel{app:ablation_detail}{{J}{17}{Detailed Ablation Analysis}{appendix.J}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {K}Trigger Mechanism and Latency}{18}{appendix.K}\protected@file@percent }
-\newlabel{app:trigger}{{K}{18}{Trigger Mechanism and Latency}{appendix.K}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {L}Germany Pearson $r$ Analysis}{18}{appendix.L}\protected@file@percent }
-\newlabel{app:germany}{{L}{18}{Germany Pearson $r$ Analysis}{appendix.L}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {M}Per-Country Results for All Models}{18}{appendix.M}\protected@file@percent }
-\newlabel{app:percountry_all}{{M}{18}{Per-Country Results for All Models}{appendix.M}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Per-country results for \textbf  {Llama-3.1-70B-Instruct}.}}{18}{table.caption.37}\protected@file@percent }
-\newlabel{tab:llama70b_percountry}{{11}{18}{Per-country results for \textbf {Llama-3.1-70B-Instruct}}{table.caption.37}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {N}Consensus-Shift Baselines}{18}{appendix.N}\protected@file@percent }
-\newlabel{app:cs_baseline}{{N}{18}{Consensus-Shift Baselines}{appendix.N}{}}
+\@writefile{toc}{\contentsline {paragraph}{Token verification.}{18}{section*.36}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {I}Baseline Implementation Details}{18}{appendix.I}\protected@file@percent }
+\newlabel{app:baselines}{{I}{18}{Baseline Implementation Details}{appendix.I}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.1}Activation Steering}{18}{subsection.I.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Sensitivity analysis and fairness considerations.}{18}{section*.37}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {I.2}ARGS and Controlled Decoding: from Incompatible to Reformulated}{18}{subsection.I.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {J}Detailed Ablation Analysis}{18}{appendix.J}\protected@file@percent }
+\newlabel{app:ablation_detail}{{J}{18}{Detailed Ablation Analysis}{appendix.J}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {K}Trigger Mechanism and Latency}{19}{appendix.K}\protected@file@percent }
+\newlabel{app:trigger}{{K}{19}{Trigger Mechanism and Latency}{appendix.K}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {L}Germany Pearson $r$ Analysis}{19}{appendix.L}\protected@file@percent }
+\newlabel{app:germany}{{L}{19}{Germany Pearson $r$ Analysis}{appendix.L}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {M}Per-Country Results for All Models}{19}{appendix.M}\protected@file@percent }
+\newlabel{app:percountry_all}{{M}{19}{Per-Country Results for All Models}{appendix.M}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Per-country results for \textbf  {Llama-3.1-70B-Instruct}.}}{19}{table.caption.38}\protected@file@percent }
+\newlabel{tab:llama70b_percountry}{{11}{19}{Per-country results for \textbf {Llama-3.1-70B-Instruct}}{table.caption.38}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {N}Consensus-Shift Baselines}{19}{appendix.N}\protected@file@percent }
+\newlabel{app:cs_baseline}{{N}{19}{Consensus-Shift Baselines}{appendix.N}{}}
 \citation{khanov2024args}
-\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces Per-country results for \textbf  {Qwen2.5-7B-Instruct} (4-bit).}}{19}{table.caption.38}\protected@file@percent }
-\newlabel{tab:qwen7b_percountry}{{12}{19}{Per-country results for \textbf {Qwen2.5-7B-Instruct} (4-bit)}{table.caption.38}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {13}{\ignorespaces Per-country results for \textbf  {Llama-3.1-8B-Instruct} (4-bit).}}{19}{table.caption.39}\protected@file@percent }
-\newlabel{tab:llama8b_percountry}{{13}{19}{Per-country results for \textbf {Llama-3.1-8B-Instruct} (4-bit)}{table.caption.39}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {O}Binary-ARGS Reward-Guided Decoding}{19}{appendix.O}\protected@file@percent }
-\newlabel{app:args}{{O}{19}{Binary-ARGS Reward-Guided Decoding}{appendix.O}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {14}{\ignorespaces Per-country results for \textbf  {Mistral-Large-2407} (4-bit). Note: despite modest JSD gains, Pearson~$r$ decreases for 11/15 countries.}}{20}{table.caption.40}\protected@file@percent }
-\newlabel{tab:mistral_percountry}{{14}{20}{Per-country results for \textbf {Mistral-Large-2407} (4-bit). Note: despite modest JSD gains, Pearson~$r$ decreases for 11/15 countries}{table.caption.40}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {15}{\ignorespaces Per-country results for \textbf  {Qwen2.5-32B-Instruct} (4-bit). SWA-MPPI degrades in 7/15 countries due to concentrated logit distributions.}}{20}{table.caption.41}\protected@file@percent }
-\newlabel{tab:qwen32b_percountry}{{15}{20}{Per-country results for \textbf {Qwen2.5-32B-Instruct} (4-bit). SWA-MPPI degrades in 7/15 countries due to concentrated logit distributions}{table.caption.41}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {P}Entropy-Aware Adaptive $\sigma $ for Qwen2.5-32B}{20}{appendix.P}\protected@file@percent }
-\newlabel{app:adaptive_sigma}{{P}{20}{Entropy-Aware Adaptive $\sigma $ for Qwen2.5-32B}{appendix.P}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {16}{\ignorespaces Per-country JSD for the four consensus-shift baselines on Llama-3.1-70B (15 countries). \textsc  {CS-Clamp} is the strongest deterministic shift but still loses to SWA-MPPI in aggregate; \textsc  {CS-Std} is catastrophic for NGA ($+0.017$ vs.\ \textsc  {CS-Mean}) due to unbounded variance amplification.}}{21}{table.caption.42}\protected@file@percent }
-\newlabel{tab:consensus_shift_country}{{16}{21}{Per-country JSD for the four consensus-shift baselines on Llama-3.1-70B (15 countries). \textsc {CS-Clamp} is the strongest deterministic shift but still loses to SWA-MPPI in aggregate; \textsc {CS-Std} is catastrophic for NGA ($+0.017$ vs.\ \textsc {CS-Mean}) due to unbounded variance amplification}{table.caption.42}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {17}{\ignorespaces Binary-ARGS per-country results (Llama-3.1-70B, 15 countries). \textsc  {ARGS-PT} achieves best or tied JSD in 13/15 countries and best $r$ in 11/15, confirming SWA-MPPI is precisely an ARGS variant with KL-regularised Prospect-Theory utility.}}{21}{table.caption.43}\protected@file@percent }
-\newlabel{tab:args_percountry}{{17}{21}{Binary-ARGS per-country results (Llama-3.1-70B, 15 countries). \textsc {ARGS-PT} achieves best or tied JSD in 13/15 countries and best $r$ in 11/15, confirming SWA-MPPI is precisely an ARGS variant with KL-regularised Prospect-Theory utility}{table.caption.43}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {Q}Extended Country Coverage (Generalisation Probe)}{21}{appendix.Q}\protected@file@percent }
-\newlabel{app:extended}{{Q}{21}{Extended Country Coverage (Generalisation Probe)}{appendix.Q}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {18}{\ignorespaces Per-country JSD under fixed-$\sigma $ on Qwen2.5-32B. Two latent country clusters emerge: USA/JPN/GBR/KOR strongly prefer high $\sigma $ (USA: $0.0523\to 0.0317$ at $\sigma {=}1.0$); DEU/CHN/BRA/VNM strictly prefer low $\sigma $. All 8 countries share $H\approx 0.52$~nats, so the entropy signal alone cannot discriminate them.}}{22}{table.caption.44}\protected@file@percent }
-\newlabel{tab:sigma_percountry}{{18}{22}{Per-country JSD under fixed-$\sigma $ on Qwen2.5-32B. Two latent country clusters emerge: USA/JPN/GBR/KOR strongly prefer high $\sigma $ (USA: $0.0523\to 0.0317$ at $\sigma {=}1.0$); DEU/CHN/BRA/VNM strictly prefer low $\sigma $. All 8 countries share $H\approx 0.52$~nats, so the entropy signal alone cannot discriminate them}{table.caption.44}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {19}{\ignorespaces Extended country pipeline run (Llama-3.1-70B). The pipeline executes end-to-end for 4 script systems and 5 language families; MPPI-induced AMCE shifts are detected in all 8 countries (mean $+0.05\pm 0.02$~pp).}}{22}{table.caption.45}\protected@file@percent }
-\newlabel{tab:extended_countries}{{19}{22}{Extended country pipeline run (Llama-3.1-70B). The pipeline executes end-to-end for 4 script systems and 5 language families; MPPI-induced AMCE shifts are detected in all 8 countries (mean $+0.05\pm 0.02$~pp)}{table.caption.45}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {R}Extended Limitations}{22}{appendix.R}\protected@file@percent }
-\newlabel{app:limitations}{{R}{22}{Extended Limitations}{appendix.R}{}}
-\@writefile{toc}{\contentsline {paragraph}{Inter-persona reward assumption.}{22}{section*.46}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Country coverage.}{22}{section*.47}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Binary format.}{22}{section*.48}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Language--culture conflation.}{22}{section*.49}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Model quantisation.}{22}{section*.50}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{WVS temporal staleness.}{22}{section*.51}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Qwen2.5-32B failure mode.}{22}{section*.52}\protected@file@percent }
-\gdef \@abspage@last{23}
+\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces Per-country results for \textbf  {Qwen2.5-7B-Instruct} (4-bit).}}{20}{table.caption.39}\protected@file@percent }
+\newlabel{tab:qwen7b_percountry}{{12}{20}{Per-country results for \textbf {Qwen2.5-7B-Instruct} (4-bit)}{table.caption.39}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {13}{\ignorespaces Per-country results for \textbf  {Llama-3.1-8B-Instruct} (4-bit).}}{20}{table.caption.40}\protected@file@percent }
+\newlabel{tab:llama8b_percountry}{{13}{20}{Per-country results for \textbf {Llama-3.1-8B-Instruct} (4-bit)}{table.caption.40}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {O}Binary-ARGS Reward-Guided Decoding}{20}{appendix.O}\protected@file@percent }
+\newlabel{app:args}{{O}{20}{Binary-ARGS Reward-Guided Decoding}{appendix.O}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {14}{\ignorespaces Per-country results for \textbf  {Mistral-Large-2407} (4-bit). Note: despite modest JSD gains, Pearson~$r$ decreases for 11/15 countries.}}{21}{table.caption.41}\protected@file@percent }
+\newlabel{tab:mistral_percountry}{{14}{21}{Per-country results for \textbf {Mistral-Large-2407} (4-bit). Note: despite modest JSD gains, Pearson~$r$ decreases for 11/15 countries}{table.caption.41}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {15}{\ignorespaces Per-country results for \textbf  {Qwen2.5-32B-Instruct} (4-bit). SWA-MPPI degrades in 7/15 countries due to concentrated logit distributions.}}{21}{table.caption.42}\protected@file@percent }
+\newlabel{tab:qwen32b_percountry}{{15}{21}{Per-country results for \textbf {Qwen2.5-32B-Instruct} (4-bit). SWA-MPPI degrades in 7/15 countries due to concentrated logit distributions}{table.caption.42}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {P}Entropy-Aware Adaptive $\sigma $ for Qwen2.5-32B}{21}{appendix.P}\protected@file@percent }
+\newlabel{app:adaptive_sigma}{{P}{21}{Entropy-Aware Adaptive $\sigma $ for Qwen2.5-32B}{appendix.P}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {16}{\ignorespaces Per-country JSD for the four consensus-shift baselines on Llama-3.1-70B (15 countries). \textsc  {CS-Clamp} is the strongest deterministic shift but still loses to SWA-MPPI in aggregate; \textsc  {CS-Std} is catastrophic for NGA ($+0.017$ vs.\ \textsc  {CS-Mean}) due to unbounded variance amplification.}}{22}{table.caption.43}\protected@file@percent }
+\newlabel{tab:consensus_shift_country}{{16}{22}{Per-country JSD for the four consensus-shift baselines on Llama-3.1-70B (15 countries). \textsc {CS-Clamp} is the strongest deterministic shift but still loses to SWA-MPPI in aggregate; \textsc {CS-Std} is catastrophic for NGA ($+0.017$ vs.\ \textsc {CS-Mean}) due to unbounded variance amplification}{table.caption.43}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {17}{\ignorespaces Binary-ARGS per-country results (Llama-3.1-70B, 15 countries). \textsc  {ARGS-PT} achieves best or tied JSD in 13/15 countries and best $r$ in 11/15, confirming SWA-MPPI is precisely an ARGS variant with KL-regularised Prospect-Theory utility.}}{22}{table.caption.44}\protected@file@percent }
+\newlabel{tab:args_percountry}{{17}{22}{Binary-ARGS per-country results (Llama-3.1-70B, 15 countries). \textsc {ARGS-PT} achieves best or tied JSD in 13/15 countries and best $r$ in 11/15, confirming SWA-MPPI is precisely an ARGS variant with KL-regularised Prospect-Theory utility}{table.caption.44}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {Q}Extended Country Coverage (Generalisation Probe)}{22}{appendix.Q}\protected@file@percent }
+\newlabel{app:extended}{{Q}{22}{Extended Country Coverage (Generalisation Probe)}{appendix.Q}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {18}{\ignorespaces Per-country JSD under fixed-$\sigma $ on Qwen2.5-32B. Two latent country clusters emerge: USA/JPN/GBR/KOR strongly prefer high $\sigma $ (USA: $0.0523\to 0.0317$ at $\sigma {=}1.0$); DEU/CHN/BRA/VNM strictly prefer low $\sigma $. All 8 countries share $H\approx 0.52$~nats, so the entropy signal alone cannot discriminate them.}}{23}{table.caption.45}\protected@file@percent }
+\newlabel{tab:sigma_percountry}{{18}{23}{Per-country JSD under fixed-$\sigma $ on Qwen2.5-32B. Two latent country clusters emerge: USA/JPN/GBR/KOR strongly prefer high $\sigma $ (USA: $0.0523\to 0.0317$ at $\sigma {=}1.0$); DEU/CHN/BRA/VNM strictly prefer low $\sigma $. All 8 countries share $H\approx 0.52$~nats, so the entropy signal alone cannot discriminate them}{table.caption.45}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {19}{\ignorespaces Extended country pipeline run (Llama-3.1-70B). The pipeline executes end-to-end for 4 script systems and 5 language families; MPPI-induced AMCE shifts are detected in all 8 countries (mean $+0.05\pm 0.02$~pp).}}{23}{table.caption.46}\protected@file@percent }
+\newlabel{tab:extended_countries}{{19}{23}{Extended country pipeline run (Llama-3.1-70B). The pipeline executes end-to-end for 4 script systems and 5 language families; MPPI-induced AMCE shifts are detected in all 8 countries (mean $+0.05\pm 0.02$~pp)}{table.caption.46}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {R}Extended Limitations}{23}{appendix.R}\protected@file@percent }
+\newlabel{app:limitations}{{R}{23}{Extended Limitations}{appendix.R}{}}
+\@writefile{toc}{\contentsline {paragraph}{Inter-persona reward assumption.}{23}{section*.47}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Country coverage.}{23}{section*.48}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Binary format.}{23}{section*.49}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Language--culture conflation.}{23}{section*.50}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Model quantisation.}{23}{section*.51}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{WVS temporal staleness.}{23}{section*.52}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Qwen2.5-32B failure mode.}{23}{section*.53}\protected@file@percent }
+\gdef \@abspage@last{24}

@@ -85,6 +85,8 @@ class SWAConfig:
     # Calibration split
     calib_fraction: float = 0.20    # 20% for calibration, 80% for eval
     tau_target_trigger_rate: float = 0.35
+    # Round3 add-on: sensitivity to calibration target rate
+    tau_target_trigger_rates: List[float] = field(default_factory=lambda: [0.25, 0.35, 0.45])
     tau_calibration_n: int = 50     # max scenarios used for calib
     # MPPI params
     noise_std: float = 0.3
@@ -447,7 +449,7 @@ def main():
     chat=Chat(tokenizer)
     base_pfx=chat.pfx("You are a helpful assistant.",device)
 
-    all_results={"A_holdout":[],"B_leakage":[],"C_fixed":[]}
+    all_results={"C_fixed":[]}
     tau_log=[]
 
     for country in cfg.target_countries:
@@ -477,20 +479,36 @@ def main():
         vars_eval=compute_variance_stats(model,tokenizer,chat,persona_pfxs,base_pfx,
                                          eval_df,cfg,device,n_max=cfg.tau_calibration_n)
 
-        print(f"  Calibrating τ_A (held-out calib):", end=" ")
-        tau_A=calibrate_tau(vars_calib,cfg.tau_target_trigger_rate)
-        print(f"  Calibrating τ_B (leakage eval):",end=" ")
-        tau_B=calibrate_tau(vars_eval,cfg.tau_target_trigger_rate)
-        tau_C=cfg.tau_conflict
-        tau_log.append({"country":country,"tau_A":tau_A,"tau_B":tau_B,"tau_C":tau_C,
-                         "var_mean_calib":np.mean(vars_calib),"var_mean_eval":np.mean(vars_eval)})
+        # Evaluate held-out vs leakage across multiple target trigger rates
+        for target_rate in cfg.tau_target_trigger_rates:
+            cond_A=f"A_holdout_r{int(round(target_rate*100)):02d}"
+            cond_B=f"B_leakage_r{int(round(target_rate*100)):02d}"
+            all_results.setdefault(cond_A, [])
+            all_results.setdefault(cond_B, [])
+            print(f"  Calibrating τ_A @ target={target_rate:.0%} (held-out calib):", end=" ")
+            tau_A=calibrate_tau(vars_calib,target_rate)
+            print(f"  Calibrating τ_B @ target={target_rate:.0%} (leakage eval):",end=" ")
+            tau_B=calibrate_tau(vars_eval,target_rate)
+            tau_log.append({
+                "country":country, "target_rate":target_rate,
+                "tau_A":tau_A, "tau_B":tau_B, "tau_C":cfg.tau_conflict,
+                "var_mean_calib":np.mean(vars_calib), "var_mean_eval":np.mean(vars_eval)
+            })
+            for cond,tau_val in [(cond_A,tau_A),(cond_B,tau_B)]:
+                print(f"  Running condition {cond} (τ={tau_val:.6f})...")
+                m=run_swa_with_tau(model,tokenizer,chat,persona_pfxs,base_pfx,
+                                    eval_df,country,cfg,tau_val,device)
+                m["country"]=country; m["tau"]=tau_val; m["target_rate"]=target_rate
+                all_results[cond].append(m)
+                print(f"    JSD={m.get('jsd',np.nan):.4f}  r={m.get('pearson_r',np.nan):.4f}")
 
-        # Evaluate all 3 conditions on EVAL set
-        for cond,tau_val in [("A_holdout",tau_A),("B_leakage",tau_B),("C_fixed",tau_C)]:
+        # Fixed τ baseline once per country
+        tau_C=cfg.tau_conflict
+        for cond,tau_val in [("C_fixed",tau_C)]:
             print(f"  Running condition {cond} (τ={tau_val:.6f})...")
             m=run_swa_with_tau(model,tokenizer,chat,persona_pfxs,base_pfx,
                                 eval_df,country,cfg,tau_val,device)
-            m["country"]=country; m["tau"]=tau_val
+            m["country"]=country; m["tau"]=tau_val; m["target_rate"]=-1.0
             all_results[cond].append(m)
             print(f"    JSD={m.get('jsd',np.nan):.4f}  r={m.get('pearson_r',np.nan):.4f}")
 
@@ -504,17 +522,24 @@ def main():
     print(f"  {'-'*60}")
 
     summary=[]
-    interp={"A_holdout":"Correct (held-out calib)","B_leakage":"Leaked (same-dist calib)","C_fixed":"Fixed τ (no calib)"}
+    interp={"C_fixed":"Fixed τ (no calib)"}
     for cond,results in all_results.items():
         jsds=[r.get("jsd",np.nan) for r in results]; rs=[r.get("pearson_r",np.nan) for r in results]
         mj=np.nanmean(jsds); mr=np.nanmean(rs)
+        if cond not in interp:
+            if cond.startswith("A_holdout"):
+                interp[cond]="Correct (held-out calib)"
+            elif cond.startswith("B_leakage"):
+                interp[cond]="Leaked (same-dist calib)"
+            else:
+                interp[cond]=cond
         print(f"  {cond:<20s} {mj:>10.4f} {mr:>12.4f}  {interp[cond]}")
         summary.append({"Condition":cond,"Mean_JSD":mj,"Mean_Pearson_r":mr,"Interpretation":interp[cond]})
     summary_df=pd.DataFrame(summary)
 
     # Key finding
-    jsd_A=summary_df[summary_df["Condition"]=="A_holdout"]["Mean_JSD"].values[0]
-    jsd_B=summary_df[summary_df["Condition"]=="B_leakage"]["Mean_JSD"].values[0]
+    jsd_A=summary_df[summary_df["Condition"]=="A_holdout_r35"]["Mean_JSD"].values[0]
+    jsd_B=summary_df[summary_df["Condition"]=="B_leakage_r35"]["Mean_JSD"].values[0]
     gap=abs(jsd_B-jsd_A)
     print(f"\n  KEY FINDING: |JSD_B - JSD_A| = {gap:.4f}")
     if gap < 0.005:
@@ -530,17 +555,20 @@ def main():
     # Plot τ_A vs τ_B per country
     fig,axes=plt.subplots(1,2,figsize=(14,5))
     tau_df=pd.DataFrame(tau_log)
+    tau_df_plot=tau_df[np.isclose(tau_df["target_rate"],0.35)].reset_index(drop=True)
+    if tau_df_plot.empty:
+        tau_df_plot=tau_df.copy()
     ax1=axes[0]
-    x=range(len(tau_df))
-    ax1.plot(x,tau_df["tau_A"],"o-",label="τ_A (held-out)",color="#2196F3",lw=2)
-    ax1.plot(x,tau_df["tau_B"],"s--",label="τ_B (leakage)",color="#E53935",lw=2)
+    x=range(len(tau_df_plot))
+    ax1.plot(x,tau_df_plot["tau_A"],"o-",label="τ_A (held-out)",color="#2196F3",lw=2)
+    ax1.plot(x,tau_df_plot["tau_B"],"s--",label="τ_B (leakage)",color="#E53935",lw=2)
     ax1.axhline(cfg.tau_conflict,color="gray",linestyle=":",label=f"τ_C (fixed={cfg.tau_conflict})")
-    ax1.set_xticks(x); ax1.set_xticklabels(tau_df["country"],rotation=45,ha="right",fontsize=9)
-    ax1.set_ylabel("τ value"); ax1.set_title("(a) τ per Country: Held-Out vs. Leakage",fontweight="bold")
+    ax1.set_xticks(x); ax1.set_xticklabels(tau_df_plot["country"],rotation=45,ha="right",fontsize=9)
+    ax1.set_ylabel("τ value"); ax1.set_title("(a) τ per Country: Held-Out vs. Leakage (target=35%)",fontweight="bold")
     ax1.legend(fontsize=9)
 
     ax2=axes[1]
-    conds=["A_holdout","B_leakage","C_fixed"]
+    conds=["A_holdout_r35","B_leakage_r35","C_fixed"]
     colors=["#2196F3","#E53935","#9E9E9E"]
     jsds_=[summary_df[summary_df["Condition"]==c]["Mean_JSD"].values[0] for c in conds]
     bars=ax2.bar(conds,jsds_,color=colors,edgecolor="white",width=0.5)

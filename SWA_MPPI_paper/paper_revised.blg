@@ -5,48 +5,44 @@ Reallocating 'name_of_file' (item size: 1) to 9 items.
 The style file: abbrvnat.bst
 Reallocating 'name_of_file' (item size: 1) to 11 items.
 Database file #1: references.bib
-Warning--entry type for "unsloth2024" isn't style-file defined
---line 459 of file references.bib
-Warning--can't use both volume and number fields in williams2017mppi
-You've used 32 entries,
+You've used 33 entries,
             2773 wiz_defined-function locations,
-            754 strings with 11284 characters,
-and the built_in function-call counts, 18159 in all, are:
-= -- 1476
-> -- 1580
-< -- 15
-+ -- 533
-- -- 501
-* -- 1579
-:= -- 2924
-add.period$ -- 100
-call.type$ -- 32
-change.case$ -- 250
-chr.to.int$ -- 32
-cite$ -- 65
-duplicate$ -- 689
-empty$ -- 1153
-format.name$ -- 539
-if$ -- 3686
+            758 strings with 11431 characters,
+and the built_in function-call counts, 18341 in all, are:
+= -- 1486
+> -- 1600
+< -- 14
++ -- 540
+- -- 507
+* -- 1592
+:= -- 2971
+add.period$ -- 102
+call.type$ -- 33
+change.case$ -- 254
+chr.to.int$ -- 33
+cite$ -- 66
+duplicate$ -- 694
+empty$ -- 1169
+format.name$ -- 547
+if$ -- 3710
 int.to.chr$ -- 1
 int.to.str$ -- 1
-missing$ -- 30
-newline$ -- 171
-num.names$ -- 128
-pop$ -- 510
+missing$ -- 31
+newline$ -- 176
+num.names$ -- 132
+pop$ -- 517
 preamble$ -- 1
-purify$ -- 218
+purify$ -- 221
 quote$ -- 0
-skip$ -- 618
+skip$ -- 616
 stack$ -- 0
-substring$ -- 358
-swap$ -- 81
-text.length$ -- 7
+substring$ -- 351
+swap$ -- 68
+text.length$ -- 5
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 352
-warning$ -- 1
-while$ -- 117
+type$ -- 363
+warning$ -- 0
+while$ -- 119
 width$ -- 0
-write$ -- 411
-(There were 2 warnings)
+write$ -- 421

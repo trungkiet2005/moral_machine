@@ -95,6 +95,8 @@ DATASET_CONFIGS = {
     "D3-Cap120":   {"cap":120, "min_per_cat": 50, "group_flip": True,  "aug": True},
     "D4-NoFlip":   {"cap": 80, "min_per_cat": 50, "group_flip": False, "aug": True},
     "D5-Strict":   {"cap": 60, "min_per_cat": 60, "group_flip": True,  "aug": True},
+    # Round3 add-on: raw/as-is style run (no cap, no synthetic augmentation, no flip jitter)
+    "D6-AsIsRaw":  {"cap": 10**9, "min_per_cat": 0, "group_flip": False, "aug": False},
 }
 
 # ── Shared infrastructure ─────────────────────────────────────────────────────
