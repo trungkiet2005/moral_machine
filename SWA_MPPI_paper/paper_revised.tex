@@ -106,7 +106,7 @@ decision logits. If inter-agent variance exceeds a calibrated threshold~$\tau$, 
 samples $K=128$ perturbations and scores each via a Prospect Theory value
 function~\citep{kahneman1979prospect} that captures the asymmetric gain-loss
 sensitivity characteristic of human moral judgment. The importance-weighted PT-IS
-update yields a minimal-KL correction; a positional debiasing step cancels recency
+update yields a Boltzmann-softmax correction; a positional debiasing step cancels recency
 effects~\citep{liu2024lost}.
 
 \paragraph{Contributions.}
@@ -387,15 +387,53 @@ and $\tilde{\delta}_k$---there is no unit mismatch and no logit-gap-squared
 artefact.
 (ii) It is \emph{bounded}: $|g_{i,k}|\le|\tilde{\delta}_k - \delta_{\text{base}}|$
 by the triangle inequality, so it cannot explode when personas agree.
-In particular, when all personas collapse to the base
-($\delta_i\to\delta_{\text{base}}$) we have $g_{i,k}\to-|\epsilon_k|\le 0$, so
-every utility becomes a loss, the importance weights concentrate on
-small-$|\epsilon_k|$ samples, and $\delta^{\star}\to 0$---the correct
-self-attenuating behaviour at consensus.
-(iii) It is \emph{sign-meaningful}: $g_{i,k}{>}0$ iff the candidate moves
-strictly closer to persona $i$'s target (a gain), $g_{i,k}{<}0$ iff it moves
-away (a loss). This matches the gain/loss framing that Prospect Theory was
-built for~\citep{kahneman1979prospect}.
+(iii) It is \emph{sign-meaningful up to overshoot}: $g_{i,k}>0$ when the
+candidate reduces the logit-gap distance to persona $i$'s target, and
+$g_{i,k}<0$ when the candidate is farther from $\delta_i$ than the base was.
+Note that overshooting past $\delta_i$ is treated as a loss ($g_{i,k}<0$),
+which is the intended behaviour: Prospect Theory was built for gain/loss
+framing around a reference point~\citep{kahneman1979prospect}, and overshoot
+is a loss in that frame.
+
+\paragraph{Self-attenuation: two regimes, honestly stated.}
+An earlier draft claimed that $\delta^{\star}\to 0$ whenever ``personas
+agree''. That statement is only half true and we correct it here, because the
+mechanism is different in two regimes and the distinction matters.
+\emph{(a) Personas agree \textbf{with the base model}:} when all
+$\delta_i\to\delta_{\text{base}}$, the consensus
+$\bar{\delta}\to\delta_{\text{base}}$ and the per-agent gain
+$g_{i,k}\to-|\epsilon_k|\le 0$ for every $i$. The consensus gain
+$g_{\bar{\cdot},k}=|\delta_{\text{base}}-\bar{\delta}|-|\tilde{\delta}_k-\bar{\delta}|$
+also collapses to $-|\epsilon_k|\le 0$, so every candidate incurs a loss.
+Under a loss-averse $v(\cdot)$ the softmax weights concentrate on
+$|\epsilon_k|\approx 0$ and $\delta^{\star}\approx 0$.
+\emph{(b) Personas agree with \textbf{each other} but \textbf{not} with the
+base:} $\delta_i\approx\bar{\delta}\neq\delta_{\text{base}}$. Here the per-agent
+gain $g_{i,k}$ is positive for candidates in a neighbourhood of
+$\bar{\delta}$, and the consensus gain $g_{\bar{\cdot},k}$ is maximised at
+$\tilde{\delta}_k=\bar{\delta}$ (i.e.\ at $\epsilon_k=0$). Because the sampled
+candidates are $\tilde{\delta}_k=\bar{\delta}+\epsilon_k$, the utility landscape
+peaks at $\epsilon_k=0$ and the softmax-weighted update again gives
+$\delta^{\star}\approx 0$---but this is \emph{not} because nothing happens;
+it is because the consensus $\bar{\delta}$ has \emph{already been added} to
+the final prediction $\sigma((\bar{\delta}+\delta^{\star})/T_{\text{dec}})$.
+In Regime (b) the corrective shift relative to the base is $\bar{\delta}$
+itself, carried by the consensus, not by $\delta^{\star}$.
+In short: $\delta^{\star}\to 0$ in both regimes, but only Regime (a) is
+``do nothing''; Regime (b) \emph{is} a shift, just one that is absorbed by
+the consensus step, not by the IS residual.
+
+\emph{Interaction with the $\sigma_0$ floor.} The floor
+$\sigma_k\ge\sigma_0=0.3$ means the proposal width does not shrink to zero
+even at consensus, so in Regime (a) we still sample non-trivial
+$\epsilon_k\sim\mathcal{N}(0,\sigma_0^2)$. The vanishing of $\delta^{\star}$
+is therefore achieved \emph{entirely through weight concentration}, not
+through proposal collapse. This is a formal weakening of ``self-attenuation''
+that we flag explicitly: under a loss-dominated utility at consensus, the
+softmax concentrates on $|\epsilon_k|$ near zero, but with $K=128$ draws from
+$\mathcal{N}(0,\sigma_0^2)$ the expectation $\sum_k w_k\epsilon_k$ is only
+empirically small, not formally zero. We do not prove a rate of convergence;
+we state the fact and validate it numerically.
 
 \paragraph{Prospect-Theory value and collective utility.}
 We use the canonical Kahneman--Tversky value function
@@ -484,6 +522,26 @@ $p=\mathcal{N}(0,\sigma_k^{\,2})$ is the proposal. There is no explicit
 pointwise KL term added to $U_{\text{total}}$; the regularisation emerges
 from the softmax combined with the Gaussian prior, not from a hand-crafted
 penalty.
+
+\paragraph{What we can and cannot prove about the IS estimator.}
+Eq.~\ref{eq:is_update} is the self-normalised importance-sampling estimator
+of $\mathbb{E}_{q^{\star}}[\epsilon]$, which is biased at finite $K$; the
+bias is $O(1/K)$ with a constant that depends on the variance of the
+(unnormalised) weights $\exp(U_{\text{total}}/\eta)$
+\citep{agapiou2017importance}. $U_{\text{total}}$ is bounded (the gains
+$g_{i,k}$ are bounded by the triangle inequality, so $v(g_{i,k})$ is bounded
+whenever $g_{i,k}$ is, and the weighted sum of two bounded terms is
+bounded), which rules out the pathological heavy-tailed weight
+distributions, but \emph{we do not} derive an explicit finite-$K$ bound.
+The value function $v(\cdot)$ is continuous but non-differentiable at
+$x{=}0$ (the Prospect-Theory kink), so $U_{\text{total}}$ has a
+non-smooth landscape whose importance weights can jump when $g_{i,k}$
+crosses zero; this is a real source of variance that we do not analyse
+theoretically. What we \emph{do} do is monitor $K_{\text{eff}}$ per scenario
+and fall back to $\delta^{\star}=0$ whenever $K_{\text{eff}}/K<\rho_{\text{eff}}$
+(Appendix~\ref{app:is_theory:keff}), which guards against the worst case of
+concentrated weights without pretending to a concentration-inequality
+guarantee.
 
 \subsection{Positional Debiasing and Final Prediction}
 \label{sec:method:debias}
@@ -592,7 +650,6 @@ Effective-sample-size threshold & $\rho_{\text{eff}}$ & 0.10 & Design \\
 PT curvature & $\alpha{=}\beta$ & 0.88 & \citet{kahneman1979prospect} \\
 PT loss aversion & $\kappa$ & 2.25 & \citet{kahneman1979prospect} \\
 Decision temp. & $T_{\text{dec}}$ & 0.5 & Validation \\
-Trigger rate & $\rho_{\text{target}}$ & 0.35 & Design \\
 $T_{\text{cat}}$ (Species / Gender / Others) & & 4.0 / 3.5 / 1.5 & Category \\
 \bottomrule
 \end{tabular}
@@ -1016,24 +1073,51 @@ evidence that these values carry over. The proposal $\sigma_k$ is set adaptively
 per scenario with a fixed floor $\sigma_0{=}0.3$ (Eq.~\ref{eq:sigma_floor}); the
 $K_{\text{eff}}$ guard uses a single fixed threshold $\rho_{\text{eff}}{=}0.10$.
 
-\emph{Cross-dimensional utility non-commensurability.} The per-category logit
-temperatures $T_{\text{cat}}$ differ across dimensions (Species 4.0, Gender 3.5,
-others 1.5), compressing the $T_{\text{cat}}$-scaled logit variance of Species
-and Gender by a factor of $(1.5/4.0)^{2}\approx 0.14$ relative to Age/Fitness.
+\emph{Cross-dimensional utility non-commensurability (potential systematic
+bias in the aggregate JSD).} The per-category logit temperatures
+$T_{\text{cat}}$ differ across dimensions (Species 4.0, Gender 3.5, others
+1.5), compressing the $T_{\text{cat}}$-scaled logit variance of Species and
+Gender by a factor of $(1.5/4.0)^{2}\approx 0.14$ relative to Age/Fitness.
 The adaptive $\sigma_k$ only partially compensates, because it uses the
-inter-persona spread \emph{post}-scaling; the Prospect-Theory utility magnitudes
-$v(g_{i,k})$ therefore remain systematically different across dimensions, and
-when SWA-PTIS aggregates over a whole country's scenario pool, low-$T_{\text{cat}}$
-dimensions can dominate the importance weights. We do not claim that the
-reported JSD improvements are uniform across the six dimensions; a
-per-dimension AMCE ablation is the most honest path to disambiguating this,
-and it is our largest analytical gap. The released code exposes this
-decomposition via
+inter-persona spread \emph{post}-scaling; the Prospect-Theory utility
+magnitudes $v(g_{i,k})$ therefore remain systematically different across
+dimensions, and when SWA-PTIS aggregates over a whole country's scenario
+pool, low-$T_{\text{cat}}$ dimensions can dominate the importance weights.
+\textbf{We flag this as a potential source of systematic bias in the
+reported aggregate JSD numbers}, not merely an analytical gap: it is
+mathematically possible that the headline JSD reduction is concentrated on
+the four low-$T_{\text{cat}}$ dimensions while Species and Gender are
+under-corrected, and we cannot rule this out from the aggregate metric
+alone. A per-dimension AMCE breakdown is the honest path to disambiguating
+this; the released code exposes the decomposition via
 \texttt{src/amce.py::compute\_per\_dimension\_alignment}, which returns the
-per-dimension human value, model value, and signed error for each country;
-it is already logged in the per-country summary JSON. We leave the
+per-dimension human value, model value, and signed error for each country
+and is already logged in the per-country summary JSON. We leave the
 numerical writeup of that decomposition for a future revision rather than
 cherry-picking a subset of dimensions here.
+
+\emph{No explicit ``drift anchor'' to the base model.} After removing the
+$\alpha_{\text{ctl}}$ term (Round 6), $U_{\text{total}}$ no longer contains a
+pointwise penalty that pulls $\delta^{\star}$ back toward zero. This is an
+intentional simplification, but the reader should know what does and does
+\emph{not} constrain drift in the resulting method. What does: (i) the
+triangle-inequality bound $|g_{i,k}|\le|\tilde{\delta}_k-\delta_{\text{base}}|$
+together with $|\tilde{\delta}_k-\bar{\delta}|=|\epsilon_k|$, which together
+imply $|\delta^{\star}|\le\max_k|\epsilon_k|\lesssim 3\sigma_k$ with high
+probability (so $\delta^{\star}$ inherits the scale of the proposal);
+(ii) the sigmoid compression
+$p_{\text{spare}}=\sigma((\bar{\delta}+\delta^{\star})/T_{\text{dec}})$ at
+the output, which bounds the effect of any $\delta^{\star}$ once
+$|\bar{\delta}+\delta^{\star}|$ leaves the linear regime of the sigmoid;
+(iii) the $K_{\text{eff}}$ guard, which sets $\delta^{\star}=0$ when the IS
+estimator is untrustworthy. What does \emph{not}: there is no term in
+$U_{\text{total}}$ that prefers ``stay close to $\delta_{\text{base}}$''.
+If the personas themselves are systematically biased in a direction
+unrelated to the target culture, SWA-PTIS will follow them. This is not a
+bug of the IS solver but a property of the whole socially-weighted
+formulation, and it is why the persona construction pipeline
+(Appendix~\ref{app:personas}) is the real load-bearing component of the
+method, not the IS step.
 
 \emph{JSD on the 6-element simplex is a shape diagnostic, not an
 importance-weighted metric.} Our JSD shifts and $L_1$-normalises the 6-D
