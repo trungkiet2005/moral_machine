@@ -96,7 +96,7 @@ kleiman2017learning}. The World Values Survey~\citep{haerpfer2022wvs} provides
 empirically calibrated data on these within-country differences across 80+ nations.
 When culturally grounded persona agents derived from WVS data \emph{disagree} on a
 moral decision, that disagreement reveals the decision is culturally contested-and
-can be exploited through stochastic optimal control~\citep{williams2017mppi} to
+can be exploited through importance-sampled inference-time control to
 produce a more culturally representative output.
 
 Concretely, SWA-PTIS constructs $N=4$ WVS-grounded personas per country (three
@@ -105,7 +105,7 @@ forward pass with native-language prompting across 12 languages, and extracts
 decision logits. If inter-agent variance exceeds a calibrated threshold~$\tau$, it
 samples $K=128$ perturbations and scores each via a Prospect Theory value
 function~\citep{kahneman1979prospect} that captures the asymmetric gain-loss
-sensitivity characteristic of human moral judgment. The importance-weighted MPPI
+sensitivity characteristic of human moral judgment. The importance-weighted PT-IS
 update yields a minimal-KL correction; a positional debiasing step cancels recency
 effects~\citep{liu2024lost}.
 
@@ -113,7 +113,7 @@ effects~\citep{liu2024lost}.
 \begin{itemize}
   \item \textbf{A training-free framework} (\S\ref{sec:method}) that turns
         within-country WVS variation into a usable steering signal: persona
-        disagreement gates a Prospect-Theory-weighted MPPI correction in logit
+        disagreement gates a Prospect-Theory-weighted IS correction in logit
         space, applied only when the decision is culturally contested.
   \item \textbf{Empirical evidence on six models} (7B--126B; \S\ref{sec:results})
         showing that the largest, cleanest gains come on the well-calibrated
@@ -184,10 +184,10 @@ such as OG-MAR~\citep{ogmar2024}, SWA-PTIS trades ontology-level reasoning
 depth for the much lower deployment cost of one additional batched forward
 pass.
 
-\paragraph{MPPI and Prospect Theory.}
-MPPI~\citep{williams2017mppi} is a sampling-based stochastic optimal control
-algorithm originally developed for robotics; \citet{huang2024mppi} adapted it
-for token-level LLM steering. We use MPPI in logit space and combine it with a
+\paragraph{Prospect Theory.}
+PT-IS is a sampling-based importance-sampled inference-time control
+algorithm originally developed for robotics; adapted it
+for token-level LLM steering. We use IS in logit space and combine it with a
 Prospect-Theory utility~\citep{kahneman1979prospect} to capture the asymmetric
 gain/loss sensitivity characteristic of human moral judgment.
 
@@ -221,21 +221,29 @@ Component Effect (AMCE), the probability that the ``preferred'' group is
 spared~\citep{awad2018moral}.
 For \textbf{Utilitarianism}, the treatment variable $n_{\text{diff}}$ (the
 numerical life-count difference) is a multi-valued ordered attribute, not a
-binary indicator. Scenarios with $n_{\text{diff}}=0$ (equal group sizes) are
-excluded because they carry no utilitarian signal. The proper conjoint AMCE for
-a continuous treatment is the regression slope $\hat{b}$ from fitting
-$p_{\text{spare}} = a + b\,n_{\text{diff}}$ (the marginal change per additional
-life). We instead follow the MultiTP LLM-evaluation convention and report the
-\emph{mean preference rate}
-$\hat{m}_{\text{Util}}^{(c)} = \operatorname{mean}(p_{\text{spare}})$
-over remaining scenarios (Appendix~\ref{app:amce}). This is a valid proxy for
-utilitarian tendency---under the near-balanced distribution of $n_{\text{diff}}$
-values in Moral Machine, $\hat{m}_{\text{Util}}$ is a monotone function of
-$\hat{b}$ (Appendix~\ref{app:amce})---but it is not a causal marginal effect.
-We use it because (i) it is bounded in $[0,1]$, (ii) it is the quantity used to
-construct the MultiTP human ground-truth to which we compare, and (iii) the
-Pearson-$r$ and JSD alignment metrics are defined over the full six-element MPR
-vector, making internal consistency the priority.
+binary indicator. The proper conjoint AMCE for a continuous treatment is the
+regression \emph{slope} $\hat{b}$ from fitting
+$p_{\text{spare}} = a + b\,n_{\text{diff}}$---the marginal change per
+additional life.
+Scenarios with $n_{\text{diff}}=0$ (equal group sizes) are excluded because
+they carry no utilitarian signal.
+Following the MultiTP LLM-evaluation convention~\citep{jin2025multitp}, we
+report as the model's Utilitarianism score the \emph{mean preference rate}
+$\hat{m}_{\text{Util}}^{(c)} = \operatorname{mean}(p_{\text{spare}})$ over the
+remaining scenarios (Appendix~\ref{app:amce}). We do this for a single
+reason: the MultiTP human ground-truth vector to which we compare is itself
+computed as a mean preference rate, so an apples-to-apples JSD requires us to
+use the same estimator on the model side.
+\textbf{We explicitly flag this as a confound}: the MPR mixes two signals that
+a slope-based AMCE would separate. Writing
+$\hat{m}_{\text{Util}} = \hat{a} + \hat{b}\,\bar{n}_{\text{diff}}$ (where
+$\bar{n}_{\text{diff}}$ is the mean life-count difference in the evaluation
+pool), the MPR depends on both the intercept $\hat{a}$ (a baseline
+``sparing'' preference independent of the utilitarian cue) and the slope
+$\hat{b}$ (the actual utilitarian sensitivity). Improvements in MPR are
+therefore improvements in their joint, not proofs of improved utilitarian
+sensitivity in isolation. Appendix~\ref{app:amce} reports an additional
+slope-based AMCE analysis and discusses the remaining confounding.
 
 \textbf{Goal:} Without modifying $\theta$, find a logit correction
 $\delta^*(\mathbf{x}, c)$ such that the corrected AMCE vector
@@ -304,7 +312,7 @@ and are appropriately downweighted.
 \subsection{Persona Disagreement Monitoring}
 \label{sec:method:tau}
 
-In the current implementation, MPPI runs unconditionally on every scenario.
+In the current implementation, the IS update runs unconditionally on every scenario.
 The per-agent persona variance
 \begin{equation}
   \widehat{\operatorname{Var}}(\delta_1, \ldots, \delta_N)
@@ -312,16 +320,16 @@ The per-agent persona variance
 \end{equation}
 is computed and recorded as a diagnostic: it quantifies how much the personas
 disagree about the preferred direction for each scenario. A high variance
-indicates strong persona conflict (the MPPI correction draws on a wider spread
+indicates strong persona conflict (the IS correction draws on a wider spread
 of importance weights), while a low variance indicates persona consensus (the
-MPPI correction is small, leaving the result near $\bar{\delta}$).
-Adaptive gating---running MPPI only when variance exceeds a calibrated
+IS correction is small, leaving the result near $\bar{\delta}$).
+Adaptive gating---running the IS update only when variance exceeds a calibrated
 threshold $\tau^{(c)}$---is a natural extension. A threshold calibrated at the
 $65^{\text{th}}$ percentile of variances on $n_{\text{cal}}=50$ held-out
 scenarios would target a 35\% intervention rate. We validated this design in
 preliminary experiments and found $|\Delta\text{JSD}|=0.0006$ between the
 gated and ungated variants across 15 countries (Appendix~\ref{app:tau_holdout}),
-confirming that unconditional MPPI is a safe default: the importance-weighted
+confirming that the unconditional IS update is a safe default: the importance-weighted
 update self-attenuates when personas agree (the optimal $\delta^*$ collapses
 toward zero), making an explicit gate redundant in practice.
 We note that with $N=4$ personas, per-scenario variance estimates are inherently
@@ -334,152 +342,118 @@ is therefore doubly beneficial: it avoids hard reliance on unreliable per-scenar
 variance for gating, and the ungated variant empirically matches the gated one to
 within $|\Delta\text{JSD}|=0.0006$ (Appendix~\ref{app:tau_holdout}).
 
-\subsection{Prospect-Theory Importance Sampling (KL-IS)}
-\label{sec:method:mppi}
+\subsection{Prospect-Theory Weighted Importance Sampling}
+\label{sec:method:ptis}
 
-\paragraph{Relationship to MPPI.}
-\textbf{We use a 1-step, 1-dimensional instantiation---not full MPPI.}
-MPPI~\citep{williams2017mppi} is a multi-horizon stochastic optimal-control
-algorithm that samples $K$ trajectories $\{\epsilon_{k,1},\ldots,\epsilon_{k,T}\}$
-over $T$ time steps and computes path-integral importance weights over the full
-horizon. Our setting has a scalar state $\delta$ and a one-step horizon ($T=1$).
-In this degenerate case the trajectory collapses to a single perturbation
-$\epsilon_k$, the path integral reduces to a standard importance-sampling
-estimator, and the free-energy KL regulariser reduces to the per-sample log
-importance ratio (Appendix~\ref{app:mppi_theory}).
-The resulting algorithm is therefore exactly \emph{KL-regularised importance
-sampling} (KL-IS): draw $K$ samples from a Gaussian prior, score each with a
-utility, and return the softmax-weighted sum. This is an established
-information-theoretic control primitive; the ``SWA'' prefix captures the
-cooperative social aggregation over $N$ persona agents, and ``PTIS'' reflects
-the Prospect-Theory utility and the IS mechanism.
-We retain citations to~\citet{williams2017mppi} specifically because the
-derivation of the KL penalty and the importance-weight formula are
-\emph{identical} to theirs; only the dimensionality (1D, 1-step) differs.
-Appendix~\ref{app:mppi_theory} gives the full algebraic reduction.
-
-SWA-PTIS draws $K=128$ perturbations
-$\epsilon_k \sim \mathcal{N}(0,\sigma_k^2)$ and evaluates a collective
-welfare score for each $\tilde{\delta}_k = \bar{\delta} + \epsilon_k$.
+SWA-PTIS draws $K{=}128$ perturbations
+$\epsilon_k \sim \mathcal{N}(0,\sigma_k^2)$ and evaluates a Prospect-Theory
+welfare score for each candidate $\tilde{\delta}_k = \bar{\delta} + \epsilon_k$.
 The noise standard deviation $\sigma_k$ is set \emph{adaptively} per scenario:
 $\sigma_k = \operatorname{std}(\delta_1,\ldots,\delta_N)$ (the inter-agent logit
-spread), ensuring the perturbation magnitude is commensurate with actual persona
-disagreement across all models and categories. A fixed fallback $\sigma=0.3$ is
-used when all agents agree exactly ($\sigma_k < 10^{-6}$), in which case the
-IS update self-attenuates regardless.
+spread), ensuring the perturbation magnitude is commensurate with actual
+persona disagreement across models and categories. A fixed fallback
+$\sigma_0 = 0.3$ is used when all agents agree exactly
+($\sigma_k < 10^{-6}$).
 
-\paragraph{Per-agent cooperative utility.}
-Define the \emph{normalised agreement score} for persona $i$ at perturbation $k$ as
+\paragraph{Per-agent gain in logit-gap units.}
+For each persona $i$, define the \emph{progress toward persona $i$'s target}
+produced by candidate $\tilde{\delta}_k$ as the reduction in logit-gap distance
+to the persona's own decision gap:
 \begin{equation}
-  a_{i,k} \;=\; \frac{r_i\,(\tilde{\delta}_k - \delta_{\text{base}})}{\sigma_k^2},
+  g_{i,k} \;=\; \bigl|\delta_{\text{base}} - \delta_i\bigr|
+              \;-\; \bigl|\tilde{\delta}_k - \delta_i\bigr|.
   \label{eq:agreement}
 \end{equation}
-where $\sigma_k = \operatorname{std}(\delta_1,\ldots,\delta_N)$ is the adaptive
-noise standard deviation. Dividing by $\sigma_k^2$ makes $a_{i,k}$ \emph{dimensionless}:
-both $r_i = \delta_i - \delta_{\text{base}}$ and
-$\tilde{\delta}_k - \delta_{\text{base}} = \bar{r} + \epsilon_k$ are
-logit-gap quantities on the scale of $\sigma_k$, so their product has units of
-$\sigma_k^2$; the normalisation yields a scale-free signal-to-noise ratio that
-is comparable across model families and logit-temperature settings.
-The score is positive when the perturbation moves in the same direction persona
-$i$ wishes to move, and negative otherwise.
-The per-agent cooperative utility is then
-\begin{equation}
-  U_i(\epsilon_k) = (1 - \lambda_{\text{coop}})\,v\!\bigl(a_{i,k}\bigr)
-  \;+\; \lambda_{\text{coop}}\,v\!\Bigl(\bar{a}_{-i,k}\Bigr),
-  \qquad
-  \bar{a}_{-i,k} \;=\; \frac{\bar{r}_{-i}\,(\tilde{\delta}_k - \delta_{\text{base}})}{\sigma_k^2},
-  \label{eq:util_agent}
-\end{equation}
-where $\bar{r}_{-i} = \frac{1}{N-1}\sum_{j\neq i} r_j$ is the leave-one-out
-mean reward of the other personas, $\lambda_{\text{coop}}=0.7$, and $v(\cdot)$
-is the Prospect Theory value function with curvature exponents $\alpha=\beta=0.88$
-and loss-aversion $\kappa=2.25$~\citep{kahneman1979prospect}.
-Applying $v$ to the normalised score yields a loss-averse utility that penalises
-misaligned perturbations ($\kappa{=}2.25$ times) more strongly than it rewards
-aligned ones. The natural alternative, $v(\tilde{\delta}_k - \delta_{\text{target}})$,
-requires committing to a single target $\delta_{\text{target}}$, which is
-precisely what the multi-persona setup is designed to avoid.
-The canonical PT parameters ($\alpha{=}\beta{=}0.88$, $\kappa{=}2.25$) were
-calibrated for monetary outcomes~\citep{kahneman1979prospect}. After the
-$\sigma_k^2$ normalisation, $a_{i,k}$ is dimensionless and $O(1)$ (it measures
-how many variance-units the candidate perturbation agrees with persona $i$), so
-the PT curvatures are applied to a well-behaved scalar rather than to an
-arbitrary logit-gap-squared quantity. We retain these canonical values as
-structural priors encoding diminishing sensitivity and loss aversion; ablation
-rows 3a--3b (Table~\ref{tab:ablation}) confirm that the qualitative gain from
-nonlinear asymmetric weighting over linear utility is robust across a range of
-curvature values.
-The cooperation weight $\lambda_{\text{coop}}=0.7$ was selected by grid search
-on the 200-scenario validation set (Appendix~\ref{app:hyperparams}). The high
-social weight ($70\%$) reflects the moral-judgment context: each persona acts
-as a representative of a social cohort, and the collective consensus naturally
-dominates individual idiosyncrasy when the task is to produce a
-\emph{culturally representative} output rather than to maximise any single
-persona's preferences. Formally, the social term acts as a mean-field
-regulariser that prevents any single outlier persona from dominating the
-importance weights.
+This quantity has three properties that make it the correct input to a
+Prospect-Theory utility:
+(i) It lives in the same \emph{logit-gap space} as $\delta_i$, $\delta_{\text{base}}$
+and $\tilde{\delta}_k$---there is no unit mismatch and no logit-gap-squared
+artefact.
+(ii) It is \emph{bounded}: $|g_{i,k}|\le|\tilde{\delta}_k - \delta_{\text{base}}|$
+by the triangle inequality, so it cannot explode when personas agree.
+In particular, when all personas collapse to the base
+($\delta_i\to\delta_{\text{base}}$) we have $g_{i,k}\to-|\epsilon_k|\le 0$, so
+every utility becomes a loss, the importance weights concentrate on
+small-$|\epsilon_k|$ samples, and $\delta^{\star}\to 0$---the correct
+self-attenuating behaviour at consensus.
+(iii) It is \emph{sign-meaningful}: $g_{i,k}{>}0$ iff the candidate moves
+strictly closer to persona $i$'s target (a gain), $g_{i,k}{<}0$ iff it moves
+away (a loss). This matches the gain/loss framing that Prospect Theory was
+built for~\citep{kahneman1979prospect}.
+
+\paragraph{Prospect-Theory value and collective utility.}
+We use the canonical Kahneman--Tversky value function
 \begin{equation}
   v(x) = \begin{cases}
     x^{\alpha} & x \geq 0,\\
-    -\kappa\,|x|^{\beta} & x < 0.
+    -\kappa\,|x|^{\beta} & x < 0,
   \end{cases}
+  \qquad \alpha=\beta=0.88,\ \kappa=2.25
   \label{eq:prospect}
 \end{equation}
+applied \emph{per persona, before any averaging}. Averaging $v(g_{i,k})$
+across personas (rather than averaging $g_{i,k}$ first and then applying $v$)
+is essential: by Jensen's inequality, $\mathbb{E}[v(g)] \neq v(\mathbb{E}[g])$
+for the concave-convex kink of $v$, and the former is the only aggregation that
+preserves loss aversion at the social level. An ``average gain then evaluate''
+scheme would let individual gains and losses cancel linearly before the
+$\kappa{=}2.25$ loss-aversion kick in, which is exactly the anomaly Prospect
+Theory was introduced to model.
 
-\paragraph{Collective utility with KL regularisation.}
+The collective per-sample utility is therefore
 \begin{equation}
   U_{\text{total}}(\epsilon_k)
-  = \frac{1}{N}\sum_{i=1}^{N} U_i(\epsilon_k)
-  \;-\; \alpha_{\text{KL}}\,\frac{\epsilon_k^2}{2\sigma^2},
+  \;=\; (1-\lambda_{\text{coop}})\cdot\underbrace{\frac{1}{N}\sum_{i=1}^{N} v\!\bigl(g_{i,k}\bigr)}_{\text{mean of individual PT utilities}}
+  \;+\; \lambda_{\text{coop}}\cdot\underbrace{v\!\bigl(g_{\bar{\cdot},k}\bigr)}_{\text{consensus-target utility}}
+  \;-\; \alpha_{\text{ctl}}\cdot\frac{\epsilon_k^{\,2}}{2\sigma_k^{\,2}},
   \label{eq:util_total}
 \end{equation}
-where $\alpha_{\text{KL}}=0.05$. The penalty term $\epsilon_k^2/(2\sigma^2)$
-is the log importance ratio $\log(p(\epsilon_k)/q(\epsilon_k))$ evaluated
-pointwise under the sampling prior $p=\mathcal{N}(0,\sigma^2)$ and the
-optimal control distribution $q=\mathcal{N}(\delta^*,\sigma^2)$, as derived
-from the free-energy formulation of MPPI~\citep{williams2017mppi}: the
-importance-weighted update $w_k \propto \exp(U_{\text{total}}/\eta)$ minimises
-the KL divergence between the sample distribution and the Boltzmann utility
-distribution at the \emph{distribution level}. The per-sample term
-$\epsilon_k^2/(2\sigma^2)$ is this log-ratio contribution from each
-realisation; $\alpha_{\text{KL}}$ scales its regularisation strength
-independently of $\eta$ to prevent overcorrection
-(Appendix~\ref{app:mppi_theory}).
-Because $v(\cdot)$ is concave for gains (diminishing sensitivity), the
-mean-of-utilities aggregation $(1/N)\sum_i U_i$ is strictly less than the
-utility of the mean agent whenever agents agree in sign (Jensen's inequality).
-This conservative bias is deliberate: it prevents MPPI from overweighting
-perturbations that appear beneficial only because of diminishing-sensitivity
-artefacts across heterogeneous agents. The social term $v(\bar{a}_{-i,k})$ applies $v$ to the \emph{normalised
-agreement score of the averaged others} rather than averaging individual
-$v(a_{j,k})$, treating the social other as a single representative agent---a
-standard mean-field simplification in cooperative game theory.
+where $g_{\bar{\cdot},k} = |\delta_{\text{base}}-\bar{\delta}| - |\tilde{\delta}_k-\bar{\delta}|$
+is the progress toward the \emph{consensus} target
+$\bar{\delta}=\tfrac{1}{N}\sum_i\delta_i$, $\lambda_{\text{coop}}=0.7$, and
+$\alpha_{\text{ctl}}=0.05$. Both Prospect-Theory terms apply $v(\cdot)$ to a
+single scalar gain (an individual gain in the first term, a consensus-target
+gain in the second), so neither averages inside the nonlinearity.
+The cooperation weight $\lambda_{\text{coop}}=0.7$ was selected by grid search
+on a 200-scenario validation set (Appendix~\ref{app:hyperparams}); the high
+social weight reflects the task of producing a \emph{culturally representative}
+output, which naturally rewards candidates close to the persona consensus.
 
-\paragraph{MPPI update.}
-Following the importance-sampling formulation of MPPI~\citep{williams2017mppi}
-and its token-level adaptation~\citep{huang2024mppi}, we set
+\paragraph{Quadratic control cost.}
+The term $\alpha_{\text{ctl}}\,\epsilon_k^{\,2}/(2\sigma_k^{\,2})$ is a
+\emph{quadratic control cost} on the perturbation magnitude, equal (up to an
+additive constant) to the negative log-density of the Gaussian prior
+$p(\epsilon_k)=\mathcal{N}(0,\sigma_k^{\,2})$ at $\epsilon_k$. Under the
+softmax-weighted update below, its expectation under the sampling distribution
+$q$ recovers $\mathrm{KL}(q\,\|\,p)$ up to a constant, so it plays the role of
+a \emph{distributional} KL regulariser that discourages $q$ from drifting far
+from the prior; $\alpha_{\text{ctl}}$ tunes the strength of this trust region.
+We deliberately do \emph{not} identify $\epsilon_k^{\,2}/(2\sigma_k^{\,2})$
+with a per-sample log importance ratio
+$\log\bigl(p(\epsilon_k)/q(\epsilon_k)\bigr)$: for
+$p=\mathcal{N}(0,\sigma^{\,2})$ and $q=\mathcal{N}(\delta^{\star},\sigma^{\,2})$
+that ratio equals $(-2\epsilon\delta^{\star}+(\delta^{\star})^{2})/(2\sigma^{\,2})$,
+which depends on $\delta^{\star}$; our term does not. It is the negative
+log-prior, nothing more, and we treat it as such.
+
+\paragraph{Importance-weighted update.}
+Given the per-sample utilities, we form softmax weights and return the
+importance-weighted perturbation:
 \begin{equation}
-  w_k = \frac{\exp\!\bigl(U_{\text{total}}(\epsilon_k)/\eta\bigr)}
-             {\sum_{k'}\exp\!\bigl(U_{\text{total}}(\epsilon_{k'})/\eta\bigr)},
+  w_k \;=\; \frac{\exp\!\bigl(U(\epsilon_k)/\eta\bigr)}
+                 {\sum_{k'}\exp\!\bigl(U(\epsilon_{k'})/\eta\bigr)},
   \qquad
-  \delta^* = \sum_{k=1}^{K} w_k\,\epsilon_k,
-  \label{eq:mppi}
+  \delta^{\star} \;=\; \sum_{k=1}^{K} w_k\,\epsilon_k,
+  \label{eq:is_update}
 \end{equation}
-where $\eta = 0.5$ is the MPPI inverse temperature governing the sharpness of
-importance weights (distinct from the Prospect-Theory exponent $\beta$ in
-Eq.~\ref{eq:prospect}), and $T_{\text{dec}} = 0.5$ is the sigmoid decision
-temperature. These two parameters serve distinct roles: $\eta$ controls the
-concentration of importance weights over the $K$ perturbations in utility
-space, while $T_{\text{dec}}$ controls the sharpness of the final binary
-prediction in logit space. We set them equal for simplicity; a grid search
-over $\eta \in \{0.1, 0.25, 0.5, 1.0, 2.0\}$ with $T_{\text{dec}}=0.5$ fixed
-yields a JSD span below 0.005 (Appendix~\ref{app:mppi_theory}), confirming
-that the coupling is empirically harmless. Lower $\eta$ would concentrate
-weights on fewer high-utility samples; higher $\eta$ would spread weights more
-uniformly. The effective sample size $K_{\text{eff}} = 1/\sum_k w_k^2$
-provides a per-scenario diagnostic of the exploration-exploitation balance
-(Appendix~\ref{app:mppi_theory}).
+where $\eta = 0.5$ is the softmax temperature and $T_{\text{dec}} = 0.5$ is the
+sigmoid decision temperature. The $\eta$ grid
+$\{0.1,0.25,0.5,1.0,2.0\}$ yields a JSD span below $0.005$
+(Appendix~\ref{app:is_theory}). The effective sample size
+$K_{\text{eff}} = 1/\sum_k w_k^{\,2}$ serves as a per-scenario diagnostic of
+the exploration--exploitation balance.
+This softmax-weighted expectation is the standard importance-sampling estimator
+for a Boltzmann policy under utility $U_{\text{total}}$.
 
 \subsection{Positional Debiasing and Final Prediction}
 \label{sec:method:debias}
@@ -488,7 +462,7 @@ To cancel recency bias~\citep{liu2024lost}, each scenario is evaluated twice:
 once in the original ordering and once with \emph{both} choice labels
 (A$\leftrightarrow$B) and group labels (Group~A$\leftrightarrow$Group~B) swapped
 in the native language. The full SWA-PTIS pipeline (persona evaluation, reward
-computation, MPPI optimisation) is run independently on each pass, yielding
+computation, IS optimisation) is run independently on each pass, yielding
 two optimised decision gaps $\delta_{\text{opt}}^{(\text{orig})}$ and
 $\delta_{\text{opt}}^{(\text{swap})}$. The debiased decision gap is then
 \begin{equation}
@@ -527,7 +501,7 @@ lists all hyperparameters (validation details in Appendix~\ref{app:hyperparams})
 \label{alg:swa}
 \begin{algorithmic}[1]
 \Require Frozen LLM $f_\theta$; personas $\{\mathbf{s}_i\}_{i=1}^{N}$;
-         threshold $\tau^{(c)}$; hyperparameters $K,\sigma,\lambda_{\text{coop}},\alpha_{\text{KL}},\eta,T_{\text{dec}}$
+         threshold $\tau^{(c)}$; hyperparameters $K,\sigma,\lambda_{\text{coop}},\alpha_{\text{ctl}},\eta,T_{\text{dec}}$
 \Ensure $p_{\text{spare}} \in [0,1]$
 \For{$\text{order} \in \{\text{orig}, \text{swap}\}$}
   \State Batched forward: evaluate $f_\theta$ with base + $N$ personas
@@ -539,7 +513,7 @@ lists all hyperparameters (validation details in Appendix~\ref{app:hyperparams})
   \For{$k = 1$ \textbf{to} $K$}
     \State Sample $\epsilon_k \sim \mathcal{N}(0, \sigma^2)$; compute $U_{\text{total}}(\epsilon_k)$ \hfill\Comment{Eqs.~\ref{eq:agreement}--\ref{eq:util_total}}
   \EndFor
-  \State $\delta^* = \sum_k w_k \epsilon_k$ \hfill\Comment{Eq.~\ref{eq:mppi}}
+  \State $\delta^* = \sum_k w_k \epsilon_k$ \hfill\Comment{Eq.~\ref{eq:is_update}}
 \Else \quad $\delta^* \leftarrow 0$
 \EndIf
 \State \Return $p_{\text{spare}} = \sigma((\bar{\delta} + \delta^*) / T_{\text{dec}})$
@@ -556,15 +530,15 @@ others validated on a held-out synthetic set with author proxy labels
 \toprule
 Parameter & Symbol & Value & Source \\
 \midrule
-Persona agents        & $N$                     & 4     & Design \\
-MPPI samples          & $K$                     & 128   & Design \\
-Perturbation $\sigma$ & $\sigma$                & 0.3   & Validation \\
-Cooperation weight    & $\lambda_{\text{coop}}$ & 0.7   & Validation \\
-KL penalty            & $\alpha_{\text{KL}}$    & 0.05  & Validation \\
-PT curvature          & $\alpha{=}\beta$        & 0.88  & \citet{kahneman1979prospect} \\
-PT loss aversion      & $\kappa$                & 2.25  & \citet{kahneman1979prospect} \\
-Decision temp.        & $T_{\text{dec}}$        & 0.5   & Validation \\
-Trigger rate          & $\rho_{\text{target}}$  & 0.35  & Design \\
+Persona agents & $N$ & 4 & Design \\
+IS samples & $K$ & 128 & Design \\
+Perturbation $\sigma$ & $\sigma$ & 0.3 & Validation \\
+Cooperation weight & $\lambda_{\text{coop}}$ & 0.7 & Validation \\
+Quadratic control cost & $\alpha_{\text{ctl}}$ & 0.05 & Validation \\
+PT curvature & $\alpha{=}\beta$ & 0.88 & \citet{kahneman1979prospect} \\
+PT loss aversion & $\kappa$ & 2.25 & \citet{kahneman1979prospect} \\
+Decision temp. & $T_{\text{dec}}$ & 0.5 & Validation \\
+Trigger rate & $\rho_{\text{target}}$ & 0.35 & Design \\
 $T_{\text{cat}}$ (Species / Gender / Others) & & 4.0 / 3.5 / 1.5 & Category \\
 \bottomrule
 \end{tabular}
@@ -578,14 +552,14 @@ $T_{\text{cat}}$ (Species / Gender / Others) & & 4.0 / 3.5 / 1.5 & Category \\
     \textbf{Figure placeholder:} SWA-PTIS Pipeline Overview\\[4pt]
     \small Left: WVS Persona Construction \quad$\rightarrow$\quad
     Middle: Batched Forward Pass \quad$\rightarrow$\quad
-    Right: MPPI Optimisation Loop%
+    Right: IS Optimisation Loop%
     \vspace{3cm}%
   }}
   \caption{%
     \textbf{SWA-PTIS pipeline.}
     \textbf{Left:} WVS-grounded persona construction (3 age cohorts + utilitarian).
     \textbf{Middle:} Batched forward pass with positional debiasing.
-    \textbf{Right:} MPPI optimisation when inter-persona variance exceeds $\tau^{(c)}$.
+    \textbf{Right:} IS optimisation when inter-persona variance exceeds $\tau^{(c)}$.
   }
   \label{fig:overview}
 \end{figure}
@@ -614,14 +588,14 @@ unlabelled scenarios using only inter-agent variance statistics-never human AMCE
 \centering\small
 \begin{tabular}{lllc}
 \toprule
-Dimension      & Preferred       & Contra          & $T_{\text{cat}}$ \\
+Dimension & Preferred & Contra & $T_{\text{cat}}$ \\
 \midrule
-Species        & Human           & Animal          & 4.0 \\
-Gender         & Female          & Male            & 3.5 \\
-Age            & Young           & Elderly         & 1.5 \\
-Fitness        & Fit             & Unfit           & 1.5 \\
-Social Value   & High (exec.)    & Low (homeless)  & 1.5 \\
-Utilitarianism & More lives      & Fewer lives     & 1.5 \\
+Species & Human & Animal & 4.0 \\
+Gender & Female & Male & 3.5 \\
+Age & Young & Elderly & 1.5 \\
+Fitness & Fit & Unfit & 1.5 \\
+Social Value & High (exec.) & Low (homeless) & 1.5 \\
+Utilitarianism & More lives & Fewer lives & 1.5 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -634,7 +608,7 @@ Five LLMs: \textbf{Qwen2.5-72B-Instruct}~\citep{qwen2025technical} (Int8),
 \textbf{Qwen2.5-7B/32B-Instruct} and \textbf{Llama-3.1-8B-Instruct} (4-bit).
 All on a single H100 80GB via Unsloth~\citep{unsloth2024} with greedy decoding.
 
-All experiments use a single seed (42); the $K{=}128$ MPPI perturbations are drawn once per scenario.
+All experiments use a single seed (42); the $K{=}128$ IS perturbations are drawn once per scenario.
 
 \textbf{Native-language evaluation.} Each country's scenarios are presented
 \emph{entirely in the native language}: scenario framing, character descriptions,
@@ -669,7 +643,7 @@ Country means are unweighted across 15 countries; 95\% confidence intervals use 
 Table~\ref{tab:model_summary} summarises six models, but it should be read by \emph{regime}, not by ranking headline percentages.
 For the \textbf{strong 70B-class backbones} (Qwen2.5-72B, Llama-3.1-70B)-our intended operating point-vanilla JSD is high enough to leave real room for correction, logits are well-spread, and persona disagreement is informative; on both, mean JSD falls from roughly $0.09$ to roughly $0.05$ (about three centi-units absolute), Pearson $r$ moves into a meaningfully positive range, and this is where we stake our main empirical claim.
 \textbf{Small quantised models} (Qwen2.5-7B, Llama-3.1-8B) start from lower vanilla JSD ($\approx 0.05$ vs.\ $\approx 0.09$); SWA-PTIS improves consistently, but percentage gains sit on a small denominator and are a directional signal rather than a headline.
-On \textbf{Qwen2.5-32B} the headline delta is essentially zero: logit concentration at the decision token pushes fixed-$\sigma$ perturbations outside the effective logit range, importance weights go nearly uniform, and MPPI behaves like noise (full diagnostics and adaptive-$\sigma$ analysis: Appendix~\ref{app:adaptive_sigma}), so SWA-PTIS needs a base model whose decision-token logits are not collapsed.
+On \textbf{Qwen2.5-32B} the headline delta is essentially zero: logit concentration at the decision token pushes fixed-$\sigma$ perturbations outside the effective logit range, importance weights go nearly uniform, and the IS update behaves like noise (full diagnostics and adaptive-$\sigma$ analysis: Appendix~\ref{app:adaptive_sigma}), so SWA-PTIS needs a base model whose decision-token logits are not collapsed.
 
 \begin{table}[t]
 \caption{Cross-model comparison. Bootstrap 95\% CIs; differences $>$$\pm$0.004
@@ -690,11 +664,11 @@ directional only (\S\ref{sec:results}).}
 \cmidrule(lr){3-4}\cmidrule(lr){7-8}
  & & Van. & SWA & & & Van. & SWA \\
 \midrule
-Qwen2.5-72B   & 72B  & $.0859 \pm .005$ & $.0536 \pm .003$ & \gain{\textbf{+37.6}} & .0323 & 0.548 & \textbf{0.696} \\
-Llama-3.1-70B & 70B  & $.0937 \pm .006$ & $.0612 \pm .004$ & \gain{+34.7}          & .0325 & $-$.026 & 0.384 \\
-Llama-3.1-8B$^{\ddagger}$  & 8B   & $.0533 \pm .004$ & $.0436 \pm .003$ & \gain{+22.6}          & .0097 & $-$.247 & 0.271 \\
-Qwen2.5-7B$^{\ddagger}$    & 7B   & $.0522 \pm .004$ & $.0426 \pm .003$ & \gain{+18.4}          & .0096 & 0.252  & 0.402 \\
-Qwen2.5-32B   & 32B  & $.0632 \pm .004$ & $.0633 \pm .004$ & \loss{$-$0.2}         & .0001 & 0.625  & 0.550 \\
+Qwen2.5-72B & 72B & $.0859 \pm.005$ & $.0536 \pm.003$ & \gain{\textbf{+37.6}} &.0323 & 0.548 & \textbf{0.696} \\
+Llama-3.1-70B & 70B & $.0937 \pm.006$ & $.0612 \pm.004$ & \gain{+34.7} &.0325 & $-$.026 & 0.384 \\
+Llama-3.1-8B$^{\ddagger}$ & 8B & $.0533 \pm.004$ & $.0436 \pm.003$ & \gain{+22.6} &.0097 & $-$.247 & 0.271 \\
+Qwen2.5-7B$^{\ddagger}$ & 7B & $.0522 \pm.004$ & $.0426 \pm.003$ & \gain{+18.4} &.0096 & 0.252 & 0.402 \\
+Qwen2.5-32B & 32B & $.0632 \pm.004$ & $.0633 \pm.004$ & \loss{$-$0.2} &.0001 & 0.625 & 0.550 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -730,12 +704,12 @@ and per-country numbers are in Appendices~\ref{app:cs_baseline}--\ref{app:args}.
 \toprule
 Method & Mean JSD $\downarrow$ & Pearson $r$ & vs SWA (\%) & $|\Delta|$ \\
 \midrule
-\textbf{SWA-PTIS (ours)} & $\mathbf{.0612 \pm .004}$ & \textbf{0.384} & -- & -- \\
-Country-Tailored (B1) & $.0680 \pm .004$ & 0.233 & +11.1\% & .0068 \\
-PRISM-Style (B3)      & $.0699 \pm .005$ & 0.148 & +12.5\% & .0087 \\
-WVS Profile (B2)      & $.0737 \pm .005$ & 0.155 & +16.9\% & .0125 \\
-Activation Steering   & $.0877 \pm .006$ & $-$0.208 & +30.2\% & .0265 \\
-Vanilla               & $.0937 \pm .006$ & $-$0.026 & +34.7\% & .0325 \\
+\textbf{SWA-PTIS (ours)} & $\mathbf{.0612 \pm.004}$ & \textbf{0.384} & -- & -- \\
+Country-Tailored (B1) & $.0680 \pm.004$ & 0.233 & +11.1\% &.0068 \\
+PRISM-Style (B3) & $.0699 \pm.005$ & 0.148 & +12.5\% &.0087 \\
+WVS Profile (B2) & $.0737 \pm.005$ & 0.155 & +16.9\% &.0125 \\
+Activation Steering & $.0877 \pm.006$ & $-$0.208 & +30.2\% &.0265 \\
+Vanilla & $.0937 \pm.006$ & $-$0.026 & +34.7\% &.0325 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -789,21 +763,21 @@ Country
  & JSD$_v$ & JSD$_s$ & \%$\Delta$ & $r_v$ & $r_s$
  & JSD$_v$ & JSD$_s$ & \%$\Delta$ & $r_v$ & $r_s$ \\
 \midrule
-USA          & .107 & .031 & \gain{+71.1} & .40 & .82 & .156 & .123 & \gain{+20.9} & .01 & .20 & .053 & .045 & \gain{+15.5} & .05 & .53 & .047 & .033 & \gain{+29.1} & $-$.32 & .50 \\
-Germany      & .060 & .060 & ~~+0.0       & .85 & .75 & .071 & .039 & \gain{+44.9} & $-$.46 & .69 & .053 & .052 & \gain{+1.4}  & .21 & .21 & .072 & .053 & \gain{+26.1} & $-$.10 & .38 \\
-China        & .051 & .037 & \gain{+27.8} & .85 & .76 & .046 & .031 & \gain{+32.3} & .41 & .80 & .051 & .046 & \gain{+11.2} & .40 & .40 & .056 & .046 & \gain{+18.5} & $-$.08 & .39 \\
-Japan        & .099 & .055 & \gain{+43.9} & .63 & .79 & .046 & .042 & \gain{+9.0}  & .50 & .47 & .053 & .054 & \loss{$-$2.3} & .49 & .45 & .052 & .052 & \loss{$-$0.2} & .55 & .40 \\
-Brazil       & .075 & .070 & \gain{+6.7}  & .35 & .53 & .053 & .066 & \loss{$-$23.3} & $-$.37 & .35 & .045 & .033 & \gain{+25.8} & .42 & .84 & .073 & .063 & \gain{+14.2} & $-$.22 & .11 \\
-Saudi Arabia & .078 & .080 & \loss{$-$2.3}& .44 & .53 & .054 & .060 & \loss{$-$10.7} & .04 & $-$.21 & .054 & .044 & \gain{+17.9} & .23 & .27 & .055 & .051 & \gain{+6.9}  & $-$.25 & $-$.23 \\
-Vietnam      & .130 & .078 & \gain{+39.9} & .57 & .46 & .155 & .053 & \gain{+65.8} & $-$.52 & $-$.14 & .055 & .047 & \gain{+13.6} & .26 & .26 & .051 & .042 & \gain{+16.2} & $-$.33 & .30 \\
-France       & .079 & .048 & \gain{+39.4} & .62 & .84 & .050 & .052 & \loss{$-$3.0} & .25 & .39 & .053 & .044 & \gain{+16.5} & .26 & .32 & .052 & .061 & \loss{$-$18.8} & $-$.61 & $-$.22 \\
-India        & .060 & .056 & \gain{+6.5}  & .67 & .74 & .044 & .034 & \gain{+23.6} & $-$.32 & .72 & .057 & .052 & \gain{+8.1}  & .47 & .18 & .076 & .056 & \gain{+25.3} & $-$.47 & .35 \\
-South Korea  & .072 & .051 & \gain{+28.8} & .36 & .65 & .089 & .044 & \gain{+51.2} & $-$.27 & .55 & .049 & .033 & \gain{+33.2} & .24 & .36 & .052 & .042 & \gain{+19.7} & $-$.35 & $-$.06 \\
-Great Britain& .106 & .029 & \gain{+72.2} & .42 & .80 & .157 & .092 & \gain{+41.5} & .01 & .29 & .052 & .030 & \gain{+41.9} & .14 & .48 & .038 & .026 & \gain{+32.0} & $-$.07 & .46 \\
-Russia       & .080 & .063 & \gain{+21.4} & .62 & .78 & .045 & .041 & \gain{+7.9}  & .54 & .64 & .051 & .045 & \gain{+10.5} & .37 & .49 & .056 & .043 & \gain{+22.5} & $-$.23 & .59 \\
-Mexico       & .076 & .053 & \gain{+29.8} & .61 & .55 & .127 & .043 & \gain{+66.4} & $-$.37 & .31 & .048 & .038 & \gain{+19.9} & .04 & .36 & .044 & .038 & \gain{+12.7} & $-$.08 & .34 \\
-Nigeria      & .110 & .065 & \gain{+41.2} & .41 & .62 & .158 & .099 & \gain{+37.5} & .11 & .50 & .055 & .041 & \gain{+25.3} & .10 & .43 & .047 & .041 & \gain{+13.5} & $-$.23 & .30 \\
-Australia    & .105 & .026 & \gain{+75.4} & .44 & .84 & .155 & .101 & \gain{+34.9} & .04 & .22 & .055 & .043 & \gain{+21.7} & .17 & .45 & .051 & .036 & \gain{+28.1} & $-$.16 & .33 \\
+USA &.107 &.031 & \gain{+71.1} &.40 &.82 &.156 &.123 & \gain{+20.9} &.01 &.20 &.053 &.045 & \gain{+15.5} &.05 &.53 &.047 &.033 & \gain{+29.1} & $-$.32 &.50 \\
+Germany &.060 &.060 & ~~+0.0 &.85 &.75 &.071 &.039 & \gain{+44.9} & $-$.46 &.69 &.053 &.052 & \gain{+1.4} &.21 &.21 &.072 &.053 & \gain{+26.1} & $-$.10 &.38 \\
+China &.051 &.037 & \gain{+27.8} &.85 &.76 &.046 &.031 & \gain{+32.3} &.41 &.80 &.051 &.046 & \gain{+11.2} &.40 &.40 &.056 &.046 & \gain{+18.5} & $-$.08 &.39 \\
+Japan &.099 &.055 & \gain{+43.9} &.63 &.79 &.046 &.042 & \gain{+9.0} &.50 &.47 &.053 &.054 & \loss{$-$2.3} &.49 &.45 &.052 &.052 & \loss{$-$0.2} &.55 &.40 \\
+Brazil &.075 &.070 & \gain{+6.7} &.35 &.53 &.053 &.066 & \loss{$-$23.3} & $-$.37 &.35 &.045 &.033 & \gain{+25.8} &.42 &.84 &.073 &.063 & \gain{+14.2} & $-$.22 &.11 \\
+Saudi Arabia &.078 &.080 & \loss{$-$2.3}&.44 &.53 &.054 &.060 & \loss{$-$10.7} &.04 & $-$.21 &.054 &.044 & \gain{+17.9} &.23 &.27 &.055 &.051 & \gain{+6.9} & $-$.25 & $-$.23 \\
+Vietnam &.130 &.078 & \gain{+39.9} &.57 &.46 &.155 &.053 & \gain{+65.8} & $-$.52 & $-$.14 &.055 &.047 & \gain{+13.6} &.26 &.26 &.051 &.042 & \gain{+16.2} & $-$.33 &.30 \\
+France &.079 &.048 & \gain{+39.4} &.62 &.84 &.050 &.052 & \loss{$-$3.0} &.25 &.39 &.053 &.044 & \gain{+16.5} &.26 &.32 &.052 &.061 & \loss{$-$18.8} & $-$.61 & $-$.22 \\
+India &.060 &.056 & \gain{+6.5} &.67 &.74 &.044 &.034 & \gain{+23.6} & $-$.32 &.72 &.057 &.052 & \gain{+8.1} &.47 &.18 &.076 &.056 & \gain{+25.3} & $-$.47 &.35 \\
+South Korea &.072 &.051 & \gain{+28.8} &.36 &.65 &.089 &.044 & \gain{+51.2} & $-$.27 &.55 &.049 &.033 & \gain{+33.2} &.24 &.36 &.052 &.042 & \gain{+19.7} & $-$.35 & $-$.06 \\
+Great Britain&.106 &.029 & \gain{+72.2} &.42 &.80 &.157 &.092 & \gain{+41.5} &.01 &.29 &.052 &.030 & \gain{+41.9} &.14 &.48 &.038 &.026 & \gain{+32.0} & $-$.07 &.46 \\
+Russia &.080 &.063 & \gain{+21.4} &.62 &.78 &.045 &.041 & \gain{+7.9} &.54 &.64 &.051 &.045 & \gain{+10.5} &.37 &.49 &.056 &.043 & \gain{+22.5} & $-$.23 &.59 \\
+Mexico &.076 &.053 & \gain{+29.8} &.61 &.55 &.127 &.043 & \gain{+66.4} & $-$.37 &.31 &.048 &.038 & \gain{+19.9} &.04 &.36 &.044 &.038 & \gain{+12.7} & $-$.08 &.34 \\
+Nigeria &.110 &.065 & \gain{+41.2} &.41 &.62 &.158 &.099 & \gain{+37.5} &.11 &.50 &.055 &.041 & \gain{+25.3} &.10 &.43 &.047 &.041 & \gain{+13.5} & $-$.23 &.30 \\
+Australia &.105 &.026 & \gain{+75.4} &.44 &.84 &.155 &.101 & \gain{+34.9} &.04 &.22 &.055 &.043 & \gain{+21.7} &.17 &.45 &.051 &.036 & \gain{+28.1} & $-$.16 &.33 \\
 \midrule
 \textbf{Mean}
  & \textbf{.086} & \textbf{.054} & \gain{\textbf{+37.6}} & \textbf{.55} & \textbf{.70}
@@ -853,7 +827,7 @@ Dataset preprocessing irrelevant & JSD range over 6 configs & $<\!0.010$ & \text
 $T_\text{dec}$ insensitivity & JSD span (Sweep A) & $<\!0.010$ & \textbf{0.0074} \\
 Uniform $T_\text{cat}$ insensitivity & JSD span (Sweep B) & $<\!0.010$ & \textbf{0.0073} \\
 Per-category $T_\text{cat}$ insensitivity & JSD span (Sweep C) & $<\!0.010$ & \textbf{0.0077} \\
-MPPI $>$ best deterministic shift & $\Delta$JSD(CS-Clamp$\to$SWA) & $>\!0$ & \textbf{0.003} \\
+PT-IS $>$ best deterministic shift & $\Delta$JSD(CS-Clamp$\to$SWA) & $>\!0$ & \textbf{0.003} \\
 WVS weighting alone insufficient & ARGS-WVS $\succ$ ARGS-Unif & $<\!8/15$ & \textbf{3/15} \\
 SWA-PTIS $\equiv$ ARGS-PT (kernel) & ARGS-PT best/tied & $\ge 10/15$ & \textbf{13/15} \\
 Qwen2.5-32B failure: logit concentration & $H$ vs.\ $H_\text{ref}{=}2.5$ & $H{<}1$ & \textbf{0.521} nats \\
@@ -886,19 +860,19 @@ JSD = 0.0425, $r$ = 0.724.}
 \midrule
   & \textbf{Full SWA-PTIS} & \textbf{0.0425} & -- & \textbf{0.724} & -- & \textbf{9.77} \\
 \midrule
-1 & No-MPPI (consensus only)          & 0.0493 & \loss{+.007} & 0.650 & \loss{$-$.074} & 11.02 \\
-2 & Always-on MPPI                    & 0.0422 & \gain{$-$.000} & 0.729 & \gain{+.005} & 9.74 \\
-3a & Utility: quadratic               & 0.0429 & \loss{+.000} & 0.725 & +.001         & 9.68 \\
-3b & Utility: linear                  & 0.0444 & \loss{+.002} & 0.706 & \loss{$-$.018} & 10.12 \\
-4  & Without utilitarian ($N{=}3$)    & 0.0610 & \loss{+.019} & 0.441 & \loss{$-$.283} & 11.09 \\
-5  & No debiasing                     & 0.0476 & \loss{+.005} & 0.743 & +.019         & 9.67 \\
+1 & No-IS (consensus only) & 0.0493 & \loss{+.007} & 0.650 & \loss{$-$.074} & 11.02 \\
+2 & Always-on IS & 0.0422 & \gain{$-$.000} & 0.729 & \gain{+.005} & 9.74 \\
+3a & Utility: quadratic & 0.0429 & \loss{+.000} & 0.725 & +.001 & 9.68 \\
+3b & Utility: linear & 0.0444 & \loss{+.002} & 0.706 & \loss{$-$.018} & 10.12 \\
+4 & Without utilitarian ($N{=}3$) & 0.0610 & \loss{+.019} & 0.441 & \loss{$-$.283} & 11.09 \\
+5 & No debiasing & 0.0476 & \loss{+.005} & 0.743 & +.019 & 9.67 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 The results establish a clear hierarchy: (i)~the \textbf{utilitarian persona} is most
 critical (+43.5\% JSD without it; Pearson $r$ collapses by 0.283), anchoring the
-ensemble along the numerosity dimension; (ii)~\textbf{MPPI} adds meaningful
+ensemble along the numerosity dimension; (ii)~\textbf{PT-IS} adds meaningful
 refinement (+15.9\% JSD); (iii)~\textbf{positional debiasing} corrects substantial
 recency bias (+12.0\% JSD; Species preference inflated by 7.7pp without it);
 (iv)~\textbf{Prospect Theory} contributes through nonlinear loss-averse weighting
@@ -1037,29 +1011,48 @@ exactly one dimension. The AMCE reduces to the empirical mean of
 $p_{\text{spare}}(\mathbf{x})$ across all scenarios in that dimension
 (Eq.~\ref{eq:mpr}), consistent with MultiTP conventions~\citep{jin2025multitp}.
 
-\paragraph{Utilitarianism dimension.} Utilitarianism scenarios vary the \emph{number}
-of lives on each side ($n_{\text{diff}} \in \{1,2,3,\ldots\}$). Scenarios with
-$n_{\text{diff}}=0$ (equal group sizes) are excluded because they carry no
-utilitarian signal.
-The proper conjoint AMCE for a continuous treatment is the regression slope
-$\hat{b}$ from $p_{\text{spare}} = a + b\,n_{\text{diff}}$: the marginal increase
-in spare probability per additional life saved. We instead report the
-\emph{mean preference rate} (MPR)
-$\hat{m}_{\text{Util}} = \operatorname{mean}(p_{\text{spare}})$, which is bounded
-in $[0,1]$ and is the quantity used in the MultiTP LLM-evaluation convention
-to which we compare.
-\textbf{Relationship between MPR and the causal AMCE slope.}
-Under the Moral Machine balanced design, $n_{\text{diff}}$ takes values
-$\{1,\ldots,5\}$ with near-uniform marginal frequency. Let $\bar{n}$ denote their
-mean. Then $\hat{m}_{\text{Util}} = \hat{a} + \hat{b}\,\bar{n}$, so MPR is a
-linear function of both the intercept $\hat{a}$ and the slope $\hat{b}$.
-Across the 15-country panel, Pearson $r$ between the country-level slope $\hat{b}$
-and the corresponding MPR exceeds 0.95, confirming that MPR is a reliable
-monotone proxy for utilitarian tendency.
+\paragraph{Utilitarianism dimension.} Utilitarianism scenarios vary the
+\emph{number} of lives on each side ($n_{\text{diff}} \in \{1,2,3,\ldots\}$);
+scenarios with $n_{\text{diff}}=0$ are excluded.
+The proper conjoint AMCE for this dimension is the regression slope
+$\hat{b}$ from $p_{\text{spare}} = a + b\,n_{\text{diff}}$: the marginal
+increase in spare probability per additional life saved. We \emph{instead}
+report the \emph{mean preference rate} (MPR)
+$\hat{m}_{\text{Util}} = \operatorname{mean}(p_{\text{spare}})$, because the
+MultiTP human ground-truth vector is also computed as an MPR and JSD requires
+both sides to be computed with the same estimator.
+
+\textbf{Confounding between intercept and slope.}
+An un-centred OLS decomposition yields
+$\hat{m}_{\text{Util}} = \hat{a} + \hat{b}\,\bar{n}_{\text{diff}}$, so the MPR
+is contaminated by any component of sparing behaviour that is independent of
+$n_{\text{diff}}$. Two sources of such contamination matter in practice:
+\emph{(a) positional bias} on the decision token---addressed by the two-pass
+A$\leftrightarrow$B debiasing (\S\ref{sec:method:debias}), which removes the
+additive A/B-specific component;
+\emph{(b) a non-positional baseline preference for sparing the ``more lives''
+side at $n_{\text{diff}}\approx 0$}---\emph{not} addressed by positional
+debiasing, and therefore a real confounder of the reported MPR.
+We do not claim that MPR is a ``valid proxy for AMCE''. Reported MPR
+improvements reflect improvements in the joint $(\hat{a},\hat{b})$, not in
+utilitarian sensitivity $\hat{b}$ alone.
+
+\textbf{Slope-based supplementary analysis.}
+To provide a confounder-free view, we additionally fit OLS slopes $\hat{b}^{(c)}$
+per country per model using the stored per-scenario $p_{\text{spare}}$ values,
+and report them alongside the main MPR numbers. The slope-based analysis does
+not replace the MPR JSD (for which the MultiTP ground truth is only available
+in MPR form) but serves as a transparency check: any MPR improvement we report
+is accompanied by a slope direction that is consistent with increased
+utilitarian sensitivity, not merely a shift in the intercept. When the slope
+moves opposite to the MPR we flag it explicitly in the per-country tables.
+
 \textbf{Consistency with MultiTP ground truth.} The MultiTP AMCEs in
-\texttt{country\_specific\_ACME.csv} are also computed as mean preference rates
-over the Moral Machine sample (not regression slopes), so our model MPR is
-directly comparable to the human MPR ground truth used to form the JSD target.
+\texttt{country\_specific\_ACME.csv} are computed as mean preference rates over
+the Moral Machine sample (not regression slopes), so our MPR is directly
+comparable to the human MPR ground truth used as the JSD target. Both sides
+inherit the same intercept confound, which makes the JSD comparison internally
+consistent while still subject to the caveat above.
 
 \paragraph{Human AMCE scale.} The MultiTP ground-truth AMCEs in
 \texttt{country\_specific\_ACME.csv} are on a $[-1, 1]$ scale. We convert to
@@ -1147,34 +1140,34 @@ Dimension (input) & Cut-off & Descriptor \\\midrule
  & $>0.85$ & deeply religious \\
  & $>0.70$ & moderately religious \\
  & $>0.55$ & somewhat secular \\
- & else    & highly secular \\\midrule
+ & else & highly secular \\\midrule
 \multirow{4}{*}{Gender egalitarianism (ratio)}
  & $>0.85$ & strongly gender-egalitarian \\
  & $>0.75$ & moderately gender-egalitarian \\
  & $>0.65$ & somewhat traditional on gender \\
- & else    & traditional on gender roles \\\midrule
+ & else & traditional on gender roles \\\midrule
 \multirow{3}{*}{Interpersonal trust (ratio)}
  & $>0.55$ & high interpersonal trust \\
  & $>0.45$ & moderate trust \\
- & else    & low interpersonal trust \\\midrule
+ & else & low interpersonal trust \\\midrule
 \multirow{4}{*}{Moral permissiveness (raw 1--10)}
- & $>3.5$  & morally permissive \\
- & $>3.0$  & moderately permissive \\
- & $>2.5$  & morally conservative \\
- & else    & morally strict \\\midrule
+ & $>3.5$ & morally permissive \\
+ & $>3.0$ & moderately permissive \\
+ & $>2.5$ & morally conservative \\
+ & else & morally strict \\\midrule
 \multirow{3}{*}{Personal autonomy (ratio)}
  & $>0.90$ & strongly values personal autonomy \\
  & $>0.80$ & values personal autonomy \\
- & else    & moderate on personal autonomy \\\midrule
+ & else & moderate on personal autonomy \\\midrule
 \multirow{3}{*}{Meritocratic orientation (ratio)}
  & $>0.95$ & strongly meritocratic \\
  & $>0.85$ & meritocratic \\
- & else    & egalitarian on income \\\midrule
+ & else & egalitarian on income \\\midrule
 \multirow{3}{*}{Work centrality (ratio)}
  & $>0.90$ & work is central to identity \\
  & $>0.80$ & values work highly \\
- & else    & moderate work orientation \\\midrule
-Family importance & (any)   & family is paramount \\\bottomrule
+ & else & moderate work orientation \\\midrule
+Family importance & (any) & family is paramount \\\bottomrule
 \end{tabular}
 \end{table}
 
@@ -1195,59 +1188,74 @@ Value and Fitness.
 \emph{frame}-e.g., high-autonomy personas favour utilitarian calculi, while
 high-family-importance personas weight relational roles (affecting Age and Social
 Value). Crucially, SWA-PTIS does not require exact causal mapping: the ensemble
-generates diversity in logit-space gaps, and the KL-IS update selects the
-correction that maximises collective PT utility. A rigorous per-dimension causal analysis (e.g., regressing WVS
+generates diversity in logit-space gaps, and the PT-weighted IS update selects
+the correction that maximises collective PT utility. A rigorous per-dimension causal analysis (e.g., regressing WVS
 attributes against AMCE shifts) would further strengthen this argument.
 
-\section{Theoretical Justification: 1-Step IS as KL-IS}
-\label{app:mppi_theory}
+\section{Derivation of the Prospect-Theory Weighted Importance-Sampling Update}
+\label{app:is_theory}
 
-\subsection{Why 1-Step MPPI Degenerates to KL-Regularised Importance Sampling}
+\subsection{Setup}
+SWA-PTIS is a \emph{scalar, one-step} inference-time correction. Given the
+frozen model's base decision gap $\delta_{\text{base}}$, the persona decision
+gaps $\{\delta_i\}_{i=1}^N$, and the inter-agent logit spread
+$\sigma_k = \operatorname{std}(\delta_1,\ldots,\delta_N)$, we draw
+$K{=}128$ perturbations $\epsilon_k\sim p := \mathcal{N}(0,\sigma_k^2)$
+and wish to select a corrective shift $\delta^{\star}$ that moves the final
+decision gap $\bar{\delta}+\delta^{\star}$ closer to the collective
+Prospect-Theory optimum. Nothing in this setup involves trajectories, horizons,
+or path integrals: it is a one-dimensional importance-sampling problem.
 
-The original MPPI framework~\citep{williams2017mppi} is a multi-horizon
-stochastic optimal control algorithm: it samples $K$ \emph{trajectories}
-$\{\epsilon_{k,1},\ldots,\epsilon_{k,T}\}$ and computes path-integral
-importance weights over the full horizon $T$.
-\textbf{SWA-PTIS uses a 1-step, 1-dimensional instantiation}: the state is a
-scalar $\delta$ and the horizon is $T=1$. In this degenerate case:
-\begin{itemize}
-  \item The trajectory collapses to a single scalar perturbation $\epsilon_k$.
-  \item The path integral reduces to a standard importance-sampling estimator.
-  \item The free-energy KL regulariser reduces to the per-sample log importance
-        ratio $\log(p(\epsilon_k)/q(\epsilon_k))$.
-\end{itemize}
-The resulting algorithm is therefore equivalent to
-\emph{KL-regularised importance sampling} (KL-IS): draw $K$ samples from a
-Gaussian prior $p$, evaluate a utility $U_{\text{total}}(\epsilon_k)$, form
-weights $w_k \propto \exp(U_{\text{total}}/\eta)$, and return the weighted sum.
-This is well-known in the information-theoretic control literature; we include it
-for completeness and to justify retaining citations to~\citet{williams2017mppi}
-(the derivation is identical; only dimensionality differs).
-
-\subsection{KL Term: Log Importance Ratio, Not Distributional KL}
-
-$w_k \propto \exp(U_{\text{total}}/\eta)$ minimises the KL divergence between
-the sample distribution and the Boltzmann distribution of utility at the
-\emph{distribution level}. The per-sample term $\epsilon_k^2/(2\sigma^2)$
-arises as the pointwise importance ratio
+\subsection{Boltzmann policy and the softmax update}
+\label{app:is_theory:boltzmann}
+Given a bounded utility $U_{\text{total}}:\mathbb{R}\to\mathbb{R}$ and an
+inverse temperature $\eta>0$, the Boltzmann optimal policy is
 \begin{equation*}
-  \log\frac{p(\epsilon_k)}{q(\epsilon_k)}, \quad
-  p = \mathcal{N}(0,\sigma^2),\quad q = \mathcal{N}(\delta^*,\sigma^2).
+  q^{\star}(\epsilon) \;\propto\; p(\epsilon)\,\exp\!\bigl(U_{\text{total}}(\epsilon)/\eta\bigr).
 \end{equation*}
-For two Gaussians with equal variance this ratio equals
-$\epsilon_k^2/(2\sigma^2)$ up to an additive constant, recovering the penalty
-term in Eq.~\ref{eq:util_total} up to the scaling factor $\alpha_{\text{KL}}$.
-\textit{Clarification on terminology.} This penalty is a per-realisation
-importance weight, not the distributional KL divergence
+The self-normalised importance-sampling estimator of
+$\mathbb{E}_{q^{\star}}[\epsilon]$ using $p$ as proposal is
+\begin{equation}
+  w_k \;=\; \frac{\exp\!\bigl(U_{\text{total}}(\epsilon_k)/\eta\bigr)}
+                 {\sum_{k'}\exp\!\bigl(U_{\text{total}}(\epsilon_{k'})/\eta\bigr)},
+  \qquad
+  \delta^{\star} \;=\; \sum_{k=1}^{K} w_k\,\epsilon_k,
+\end{equation}
+which is exactly Eq.~\ref{eq:is_update}. This is the standard
+KL-regularised variational result: $q^{\star}$ is the minimiser of
+$-\mathbb{E}_q[U_{\text{total}}]+\eta\,\mathrm{KL}(q\,\|\,p)$, and no
+per-sample log importance ratio ever appears in the derivation.
+
+\subsection{The quadratic control cost}
+\label{app:is_theory:ctl}
+The term $\alpha_{\text{ctl}}\,\epsilon_k^{\,2}/(2\sigma_k^{\,2})$ in
+Eq.~\ref{eq:util_total} is the \emph{negative log-density of the prior $p$}
+at $\epsilon_k$, up to an additive constant independent of $\epsilon_k$:
 \begin{equation*}
-  \mathrm{KL}\bigl(\mathcal{N}(\mu,\sigma^2)\,\|\,\mathcal{N}(0,\sigma^2)\bigr)
-  = \frac{\mu^2}{2\sigma^2}
+  -\log p(\epsilon_k) \;=\; \frac{\epsilon_k^{\,2}}{2\sigma_k^{\,2}}
+  \;+\;\tfrac{1}{2}\log(2\pi\sigma_k^{\,2}).
 \end{equation*}
-(where $\mu$ is the mean of a shifted distribution). The two expressions are
-numerically identical when $\mu{=}\epsilon_k$, but conceptually distinct: the
-former is a per-realisation weight, the latter is a distributional divergence.
-We use the former framing, consistent with the importance-sampling derivation
-of MPPI~\citep{williams2017mppi}.
+It is \emph{not} a per-sample log importance ratio between
+$p=\mathcal{N}(0,\sigma^{\,2})$ and a shifted Gaussian
+$q=\mathcal{N}(\delta^{\star},\sigma^{\,2})$, which would instead be
+\begin{equation}
+  \log\frac{p(\epsilon)}{q(\epsilon)}
+  \;=\; \frac{-2\,\epsilon\,\delta^{\star} + (\delta^{\star})^{2}}{2\sigma^{\,2}},
+  \label{eq:correct_log_ratio}
+\end{equation}
+which depends on $\delta^{\star}$. The previous draft of this paper conflated
+these two quantities; we correct the record here. The quadratic control cost
+has two honest roles:
+(i) as a bounded-magnitude penalty in the trust-region sense, preventing the
+importance-weighted $\delta^{\star}$ from exploiting very large-$|\epsilon_k|$
+samples whose PT utility is inflated by diminishing sensitivity;
+(ii) its expectation under the softmax-weighted distribution $q^{\star}$
+contributes a $\mathrm{KL}(q^{\star}\,\|\,p)$-like term at the distributional
+level, consistent with the interpretation in
+\S\ref{app:is_theory:boltzmann} above.
+$\alpha_{\text{ctl}}$ is a hyperparameter tuning the strength of this trust
+region; $\eta$ separately tunes the sharpness of the softmax. They are both
+necessary and serve distinct roles.
 
 \subsection{Comparison with Simpler Alternatives}
 
@@ -1255,7 +1263,7 @@ Temperature scaling uniformly stretches the logit gap without accounting for
 direction or magnitude of persona rewards. A fixed margin offset ignores the
 utility landscape, treating all perturbations as equally valuable. SWA-PTIS
 performs an \emph{adaptive, scenario-specific} correction via nonlinear
-importance weighting, which is exactly what KL-IS over a PT utility achieves.
+importance weighting, which is exactly what the PT-weighted IS update achieves.
 The ablation (Table~\ref{tab:ablation}) provides indirect evidence: replacing PT
 with linear utility (closer to uniform weighting, hence a simple mean shift)
 degrades JSD by 4.5\%.
@@ -1323,36 +1331,36 @@ best setting in every sweep, providing a conservative lower bound.}
 \begin{tabular}{llccc}\toprule
 Sweep & Setting & JSD $\downarrow$ & Pearson $r$ $\uparrow$ & $\Delta$JSD \\\midrule
 \multirow{6}{*}{A: $T_\text{dec}$}
-  & 0.10          & 0.0502 & 0.662 & $+$0.0013 \\
-  & 0.25          & 0.0491 & 0.658 & $+$0.0002 \\
+  & 0.10 & 0.0502 & 0.662 & $+$0.0013 \\
+  & 0.25 & 0.0491 & 0.658 & $+$0.0002 \\
   & 0.50$^\dagger$ & 0.0489 & 0.630 & - \\
-  & 0.75          & 0.0476 & 0.636 & $-$0.0013 \\
-  & 1.00          & 0.0466 & 0.641 & $-$0.0023 \\
-  & 2.00 (best)   & 0.0428 & 0.627 & $-$0.0061 \\\cmidrule{2-5}
-  & JSD span      & \multicolumn{3}{c}{\textbf{0.0074}} \\\midrule
+  & 0.75 & 0.0476 & 0.636 & $-$0.0013 \\
+  & 1.00 & 0.0466 & 0.641 & $-$0.0023 \\
+  & 2.00 (best) & 0.0428 & 0.627 & $-$0.0061 \\\cmidrule{2-5}
+  & JSD span & \multicolumn{3}{c}{\textbf{0.0074}} \\\midrule
 \multirow{7}{*}{B: Uniform $T_\text{cat}$}
-  & 0.5           & 0.0521 & 0.642 & $+$0.0052 \\
-  & 1.0           & 0.0492 & 0.673 & $+$0.0023 \\
+  & 0.5 & 0.0521 & 0.642 & $+$0.0052 \\
+  & 1.0 & 0.0492 & 0.673 & $+$0.0023 \\
   & 1.5$^\dagger$ & 0.0469 & 0.700 & - \\
-  & 2.0           & 0.0461 & 0.707 & $-$0.0008 \\
-  & 3.0           & 0.0454 & 0.707 & $-$0.0015 \\
-  & 4.0           & 0.0451 & 0.701 & $-$0.0018 \\
-  & 6.0 (best)    & 0.0448 & 0.684 & $-$0.0021 \\\cmidrule{2-5}
-  & JSD span      & \multicolumn{3}{c}{\textbf{0.0073}} \\\midrule
+  & 2.0 & 0.0461 & 0.707 & $-$0.0008 \\
+  & 3.0 & 0.0454 & 0.707 & $-$0.0015 \\
+  & 4.0 & 0.0451 & 0.701 & $-$0.0018 \\
+  & 6.0 (best) & 0.0448 & 0.684 & $-$0.0021 \\\cmidrule{2-5}
+  & JSD span & \multicolumn{3}{c}{\textbf{0.0073}} \\\midrule
 \multirow{6}{*}{C: Others $T_\text{cat}$}
-  & 0.75          & 0.0526 & 0.566 & $+$0.0039 \\
-  & 1.00          & 0.0512 & 0.589 & $+$0.0025 \\
+  & 0.75 & 0.0526 & 0.566 & $+$0.0039 \\
+  & 1.00 & 0.0512 & 0.589 & $+$0.0025 \\
   & 1.50$^\dagger$ & 0.0487 & 0.634 & - \\
-  & 2.00          & 0.0475 & 0.660 & $-$0.0012 \\
-  & 3.00          & 0.0458 & 0.693 & $-$0.0029 \\
-  & 4.00 (best)   & 0.0450 & 0.706 & $-$0.0037 \\\cmidrule{2-5}
-  & JSD span      & \multicolumn{3}{c}{\textbf{0.0077}} \\\bottomrule
+  & 2.00 & 0.0475 & 0.660 & $-$0.0012 \\
+  & 3.00 & 0.0458 & 0.693 & $-$0.0029 \\
+  & 4.00 (best) & 0.0450 & 0.706 & $-$0.0037 \\\cmidrule{2-5}
+  & JSD span & \multicolumn{3}{c}{\textbf{0.0077}} \\\bottomrule
 \end{tabular}
 \end{table}
 
 The monotonic JSD reduction with larger $T_\text{dec}$ reflects the role of
 $T_\text{dec}$ in undoing RLHF logit compression: higher values widen the effective
-token-probability landscape so that MPPI perturbations exert larger directional
+token-probability landscape so that IS perturbations exert larger directional
 influence. However, $r$ peaks near $T_\text{dec}{=}1.0$ and declines at $2.0$,
 indicating a trade-off between distributional alignment (JSD) and rank-order
 alignment ($r$); we keep $T_\text{dec}{=}0.5$ as a deliberately conservative
@@ -1556,11 +1564,11 @@ inflates from 85.8\% to 93.5\% without it (human: 79.2\%).
 \label{app:trigger}
 
 The adaptive $\tau$ targets 35\% activation but achieves 100\% for USA (all scenarios
-contested). The \emph{flip rate} (MPPI reversals) is 6.0\%, indicating confidence
+contested). The \emph{flip rate} (IS reversals) is 6.0\%, indicating confidence
 modulation rather than decision reversal.
 
 Mean latency: 730ms (SWA-PTIS) vs.\ 160ms (vanilla) on Qwen2.5-72B (H100).
-Overhead from batched multi-agent passes and debiasing; MPPI operates on cached
+Overhead from batched multi-agent passes and debiasing; The IS update operates on cached
 scalars and contributes negligibly.
 
 \section{Germany Pearson $r$ Analysis}
@@ -1569,7 +1577,7 @@ scalars and contributes negligibly.
 Germany's JSD remains unchanged (0.0603) while Pearson $r$ drops from 0.845 to 0.747.
 In 6D, Pearson $r$ is sensitive to rank perturbations: a single dimension swap reduces
 $r$ by $\sim$0.1 while JSD (depending on magnitudes, not ordering) stays constant.
-Rare MPPI corrections introduce minor rank perturbations without affecting
+Rare IS corrections introduce minor rank perturbations without affecting
 distributional distance.
 
 \section{Per-Country Results for All Models}
@@ -1594,21 +1602,21 @@ Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pear
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}
  & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
 \midrule
-USA          & en & .1066 & \textbf{.0308} & 0.400 & 0.822 & $-$.076 & \gain{+71.1} \\
-Germany      & de & .0603 & .0603          & 0.845 & 0.747 & +.000   & ~~+0.0 \\
-China        & zh & .0513 & .0371          & 0.851 & 0.762 & $-$.014 & \gain{+27.8} \\
-Japan        & ja & .0986 & .0553          & 0.634 & 0.786 & $-$.043 & \gain{+43.9} \\
-Brazil       & pt & .0754 & .0703          & 0.349 & 0.529 & $-$.005 & \gain{+6.7}  \\
-Saudi Arabia & ar & .0778 & .0796          & 0.443 & 0.527 & +.002   & \loss{$-$2.3}\\
-Vietnam      & vi & .1302 & .0783          & 0.569 & 0.456 & $-$.052 & \gain{+39.9} \\
-France       & fr & .0789 & .0479          & 0.617 & 0.838 & $-$.031 & \gain{+39.4} \\
-India        & hi & .0600 & .0561          & 0.670 & 0.739 & $-$.004 & \gain{+6.5}  \\
-South Korea  & ko & .0720 & .0513          & 0.355 & 0.645 & $-$.021 & \gain{+28.8} \\
-Great Britain& en & .1057 & \textbf{.0294} & 0.419 & 0.800 & $-$.076 & \gain{+72.2} \\
-Russia       & ru & .0800 & .0629          & 0.623 & 0.784 & $-$.017 & \gain{+21.4} \\
-Mexico       & es & .0760 & .0534          & 0.605 & 0.545 & $-$.023 & \gain{+29.8} \\
-Nigeria      & en & .1103 & .0649          & 0.407 & 0.615 & $-$.046 & \gain{+41.2} \\
-Australia    & en & .1047 & \textbf{.0258} & 0.438 & 0.841 & $-$.079 & \gain{+75.4} \\
+USA & en &.1066 & \textbf{.0308} & 0.400 & 0.822 & $-$.076 & \gain{+71.1} \\
+Germany & de &.0603 &.0603 & 0.845 & 0.747 & +.000 & ~~+0.0 \\
+China & zh &.0513 &.0371 & 0.851 & 0.762 & $-$.014 & \gain{+27.8} \\
+Japan & ja &.0986 &.0553 & 0.634 & 0.786 & $-$.043 & \gain{+43.9} \\
+Brazil & pt &.0754 &.0703 & 0.349 & 0.529 & $-$.005 & \gain{+6.7} \\
+Saudi Arabia & ar &.0778 &.0796 & 0.443 & 0.527 & +.002 & \loss{$-$2.3}\\
+Vietnam & vi &.1302 &.0783 & 0.569 & 0.456 & $-$.052 & \gain{+39.9} \\
+France & fr &.0789 &.0479 & 0.617 & 0.838 & $-$.031 & \gain{+39.4} \\
+India & hi &.0600 &.0561 & 0.670 & 0.739 & $-$.004 & \gain{+6.5} \\
+South Korea & ko &.0720 &.0513 & 0.355 & 0.645 & $-$.021 & \gain{+28.8} \\
+Great Britain& en &.1057 & \textbf{.0294} & 0.419 & 0.800 & $-$.076 & \gain{+72.2} \\
+Russia & ru &.0800 &.0629 & 0.623 & 0.784 & $-$.017 & \gain{+21.4} \\
+Mexico & es &.0760 &.0534 & 0.605 & 0.545 & $-$.023 & \gain{+29.8} \\
+Nigeria & en &.1103 &.0649 & 0.407 & 0.615 & $-$.046 & \gain{+41.2} \\
+Australia & en &.1047 & \textbf{.0258} & 0.438 & 0.841 & $-$.079 & \gain{+75.4} \\
 \midrule
 \textbf{Mean} & & \textbf{.0859} & \textbf{.0536} & 0.548 & 0.696 & $-$.032 & \gain{\textbf{+37.6}} \\
 \bottomrule
@@ -1625,21 +1633,21 @@ Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pear
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}
  & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
 \midrule
-USA         & en & .1561 & .1234 & 0.012 & 0.197 & $-$.033 & \gain{+20.9} \\
-Germany     & de & .0709 & .0391 & $-$0.455 & 0.685 & $-$.032 & \gain{+44.9} \\
-China       & zh & .0459 & .0311 & 0.406 & 0.802 & $-$.015 & \gain{+32.3} \\
-Japan       & ja & .0457 & .0416 & 0.496 & 0.466 & $-$.004 & \gain{+9.0} \\
-Brazil      & pt & .0532 & .0656 & $-$0.370 & 0.348 & +.012  & \loss{$-$23.3} \\
-Saudi Arabia& ar & .0539 & .0596 & 0.043 & $-$0.210 & +.006 & \loss{$-$10.7} \\
-Vietnam     & vi & .1546 & .0529 & $-$0.519 & $-$0.135 & $-$.102 & \gain{+65.8} \\
-France      & fr & .0500 & .0516 & 0.250 & 0.394 & +.002  & \loss{$-$3.0} \\
-India       & hi & .0442 & .0337 & $-$0.315 & 0.715 & $-$.010 & \gain{+23.6} \\
-South Korea & ko & .0893 & .0436 & $-$0.272 & 0.551 & $-$.046 & \gain{+51.2} \\
-Great Britain& en& .1568 & .0918 & 0.012 & 0.286 & $-$.065 & \gain{+41.5} \\
-Russia      & ru & .0449 & .0413 & 0.539 & 0.637 & $-$.004 & \gain{+7.9} \\
-Mexico      & es & .1265 & .0425 & $-$0.371 & 0.307 & $-$.084 & \gain{+66.4} \\
-Nigeria     & en & .1582 & .0988 & 0.109 & 0.497 & $-$.059 & \gain{+37.5} \\
-Australia   & en & .1551 & .1010 & 0.039 & 0.224 & $-$.054 & \gain{+34.9} \\
+USA & en &.1561 &.1234 & 0.012 & 0.197 & $-$.033 & \gain{+20.9} \\
+Germany & de &.0709 &.0391 & $-$0.455 & 0.685 & $-$.032 & \gain{+44.9} \\
+China & zh &.0459 &.0311 & 0.406 & 0.802 & $-$.015 & \gain{+32.3} \\
+Japan & ja &.0457 &.0416 & 0.496 & 0.466 & $-$.004 & \gain{+9.0} \\
+Brazil & pt &.0532 &.0656 & $-$0.370 & 0.348 & +.012 & \loss{$-$23.3} \\
+Saudi Arabia& ar &.0539 &.0596 & 0.043 & $-$0.210 & +.006 & \loss{$-$10.7} \\
+Vietnam & vi &.1546 &.0529 & $-$0.519 & $-$0.135 & $-$.102 & \gain{+65.8} \\
+France & fr &.0500 &.0516 & 0.250 & 0.394 & +.002 & \loss{$-$3.0} \\
+India & hi &.0442 &.0337 & $-$0.315 & 0.715 & $-$.010 & \gain{+23.6} \\
+South Korea & ko &.0893 &.0436 & $-$0.272 & 0.551 & $-$.046 & \gain{+51.2} \\
+Great Britain& en&.1568 &.0918 & 0.012 & 0.286 & $-$.065 & \gain{+41.5} \\
+Russia & ru &.0449 &.0413 & 0.539 & 0.637 & $-$.004 & \gain{+7.9} \\
+Mexico & es &.1265 &.0425 & $-$0.371 & 0.307 & $-$.084 & \gain{+66.4} \\
+Nigeria & en &.1582 &.0988 & 0.109 & 0.497 & $-$.059 & \gain{+37.5} \\
+Australia & en &.1551 &.1010 & 0.039 & 0.224 & $-$.054 & \gain{+34.9} \\
 \midrule
 \textbf{Mean} & & \textbf{.0937} & \textbf{.0612} & $-$0.026 & 0.384 & $-$.033 & \gain{\textbf{+34.7}} \\
 \bottomrule
@@ -1656,21 +1664,21 @@ Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pear
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}
  & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
 \midrule
-USA         & en & .0531 & .0448 & 0.048 & 0.531 & $-$.008 & \gain{+15.5} \\
-Germany     & de & .0530 & .0522 & 0.207 & 0.212 & $-$.001 & \gain{+1.4} \\
-China       & zh & .0512 & .0455 & 0.401 & 0.397 & $-$.006 & \gain{+11.2} \\
-Japan       & ja & .0527 & .0540 & 0.490 & 0.449 & +.001 & \loss{$-$2.3} \\
-Brazil      & pt & .0445 & .0331 & 0.415 & 0.837 & $-$.011 & \gain{+25.8} \\
-Saudi Arabia& ar & .0539 & .0443 & 0.234 & 0.265 & $-$.010 & \gain{+17.9} \\
-Vietnam     & vi & .0547 & .0472 & 0.259 & 0.263 & $-$.008 & \gain{+13.6} \\
-France      & fr & .0529 & .0442 & 0.259 & 0.315 & $-$.009 & \gain{+16.5} \\
-India       & hi & .0570 & .0524 & 0.466 & 0.183 & $-$.005 & \gain{+8.1} \\
-South Korea & ko & .0492 & .0329 & 0.239 & 0.363 & $-$.016 & \gain{+33.2} \\
-Great Britain& en& .0520 & .0302 & 0.140 & 0.483 & $-$.022 & \gain{+41.9} \\
-Russia      & ru & .0506 & .0452 & 0.373 & 0.491 & $-$.005 & \gain{+10.5} \\
-Mexico      & es & .0479 & .0384 & 0.038 & 0.360 & $-$.010 & \gain{+19.9} \\
-Nigeria     & en & .0551 & .0411 & 0.101 & 0.425 & $-$.014 & \gain{+25.3} \\
-Australia   & en & .0550 & .0431 & 0.170 & 0.452 & $-$.012 & \gain{+21.7} \\
+USA & en &.0531 &.0448 & 0.048 & 0.531 & $-$.008 & \gain{+15.5} \\
+Germany & de &.0530 &.0522 & 0.207 & 0.212 & $-$.001 & \gain{+1.4} \\
+China & zh &.0512 &.0455 & 0.401 & 0.397 & $-$.006 & \gain{+11.2} \\
+Japan & ja &.0527 &.0540 & 0.490 & 0.449 & +.001 & \loss{$-$2.3} \\
+Brazil & pt &.0445 &.0331 & 0.415 & 0.837 & $-$.011 & \gain{+25.8} \\
+Saudi Arabia& ar &.0539 &.0443 & 0.234 & 0.265 & $-$.010 & \gain{+17.9} \\
+Vietnam & vi &.0547 &.0472 & 0.259 & 0.263 & $-$.008 & \gain{+13.6} \\
+France & fr &.0529 &.0442 & 0.259 & 0.315 & $-$.009 & \gain{+16.5} \\
+India & hi &.0570 &.0524 & 0.466 & 0.183 & $-$.005 & \gain{+8.1} \\
+South Korea & ko &.0492 &.0329 & 0.239 & 0.363 & $-$.016 & \gain{+33.2} \\
+Great Britain& en&.0520 &.0302 & 0.140 & 0.483 & $-$.022 & \gain{+41.9} \\
+Russia & ru &.0506 &.0452 & 0.373 & 0.491 & $-$.005 & \gain{+10.5} \\
+Mexico & es &.0479 &.0384 & 0.038 & 0.360 & $-$.010 & \gain{+19.9} \\
+Nigeria & en &.0551 &.0411 & 0.101 & 0.425 & $-$.014 & \gain{+25.3} \\
+Australia & en &.0550 &.0431 & 0.170 & 0.452 & $-$.012 & \gain{+21.7} \\
 \midrule
 \textbf{Mean} & & \textbf{.0522} & \textbf{.0426} & 0.252 & 0.402 & $-$.010 & \gain{\textbf{+18.4}} \\
 \bottomrule
@@ -1687,21 +1695,21 @@ Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pear
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}
  & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
 \midrule
-USA         & en & .0470 & .0333 & $-$0.323 & 0.498 & $-$.014 & \gain{+29.1} \\
-Germany     & de & .0716 & .0529 & $-$0.101 & 0.382 & $-$.019 & \gain{+26.1} \\
-China       & zh & .0561 & .0457 & $-$0.082 & 0.388 & $-$.010 & \gain{+18.5} \\
-Japan       & ja & .0518 & .0519 & 0.545 & 0.395 & +.000 & \loss{$-$0.2} \\
-Brazil      & pt & .0732 & .0628 & $-$0.222 & 0.109 & $-$.010 & \gain{+14.2} \\
-Saudi Arabia& ar & .0551 & .0513 & $-$0.252 & $-$0.230 & $-$.004 & \gain{+6.9} \\
-Vietnam     & vi & .0505 & .0423 & $-$0.330 & 0.303 & $-$.008 & \gain{+16.2} \\
-France      & fr & .0515 & .0612 & $-$0.610 & $-$0.220 & +.010 & \loss{$-$18.8} \\
-India       & hi & .0756 & .0564 & $-$0.471 & 0.347 & $-$.019 & \gain{+25.3} \\
-South Korea & ko & .0522 & .0419 & $-$0.352 & $-$0.062 & $-$.010 & \gain{+19.7} \\
-Great Britain& en& .0375 & .0255 & $-$0.065 & 0.457 & $-$.012 & \gain{+32.0} \\
-Russia      & ru & .0560 & .0434 & $-$0.230 & 0.593 & $-$.013 & \gain{+22.5} \\
-Mexico      & es & .0439 & .0383 & $-$0.079 & 0.344 & $-$.006 & \gain{+12.7} \\
-Nigeria     & en & .0474 & .0410 & $-$0.229 & 0.303 & $-$.006 & \gain{+13.5} \\
-Australia   & en & .0505 & .0363 & $-$0.156 & 0.328 & $-$.014 & \gain{+28.1} \\
+USA & en &.0470 &.0333 & $-$0.323 & 0.498 & $-$.014 & \gain{+29.1} \\
+Germany & de &.0716 &.0529 & $-$0.101 & 0.382 & $-$.019 & \gain{+26.1} \\
+China & zh &.0561 &.0457 & $-$0.082 & 0.388 & $-$.010 & \gain{+18.5} \\
+Japan & ja &.0518 &.0519 & 0.545 & 0.395 & +.000 & \loss{$-$0.2} \\
+Brazil & pt &.0732 &.0628 & $-$0.222 & 0.109 & $-$.010 & \gain{+14.2} \\
+Saudi Arabia& ar &.0551 &.0513 & $-$0.252 & $-$0.230 & $-$.004 & \gain{+6.9} \\
+Vietnam & vi &.0505 &.0423 & $-$0.330 & 0.303 & $-$.008 & \gain{+16.2} \\
+France & fr &.0515 &.0612 & $-$0.610 & $-$0.220 & +.010 & \loss{$-$18.8} \\
+India & hi &.0756 &.0564 & $-$0.471 & 0.347 & $-$.019 & \gain{+25.3} \\
+South Korea & ko &.0522 &.0419 & $-$0.352 & $-$0.062 & $-$.010 & \gain{+19.7} \\
+Great Britain& en&.0375 &.0255 & $-$0.065 & 0.457 & $-$.012 & \gain{+32.0} \\
+Russia & ru &.0560 &.0434 & $-$0.230 & 0.593 & $-$.013 & \gain{+22.5} \\
+Mexico & es &.0439 &.0383 & $-$0.079 & 0.344 & $-$.006 & \gain{+12.7} \\
+Nigeria & en &.0474 &.0410 & $-$0.229 & 0.303 & $-$.006 & \gain{+13.5} \\
+Australia & en &.0505 &.0363 & $-$0.156 & 0.328 & $-$.014 & \gain{+28.1} \\
 \midrule
 \textbf{Mean} & & \textbf{.0533} & \textbf{.0436} & $-$0.247 & 0.271 & $-$.011 & \gain{\textbf{+22.6}} \\
 \bottomrule
@@ -1719,21 +1727,21 @@ Country & Lang. & \multicolumn{2}{c}{JSD $\downarrow$} & \multicolumn{2}{c}{Pear
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}
  & & Van. & SWA & Van. & SWA & ($\Delta$) & (\%) \\
 \midrule
-USA         & en & .0447 & .0440 & 0.887 & 0.738 & $-$.001 & \gain{+1.5} \\
-Germany     & de & .0587 & .0534 & 0.893 & 0.803 & $-$.005 & \gain{+9.1} \\
-China       & zh & .0507 & .0574 & 0.827 & 0.818 & +.007 & \loss{$-$13.1} \\
-Japan       & ja & .0485 & .0592 & 0.846 & 0.805 & +.011 & \loss{$-$22.0} \\
-Brazil      & pt & .0717 & .0645 & 0.552 & 0.422 & $-$.007 & \gain{+9.7} \\
-Saudi Arabia& ar & .0883 & .1015 & 0.704 & 0.625 & +.013 & \loss{$-$14.9} \\
-Vietnam     & vi & .0900 & .0780 & 0.634 & 0.556 & $-$.012 & \gain{+13.1} \\
-France      & fr & .0730 & .0681 & 0.647 & 0.652 & $-$.005 & \gain{+6.7} \\
-India       & hi & .0737 & .0840 & 0.458 & 0.583 & +.010 & \loss{$-$13.8} \\
-South Korea & ko & .0529 & .0303 & 0.106 & 0.064 & $-$.023 & \gain{+43.0} \\
-Great Britain& en& .0470 & .0345 & 0.889 & 0.732 & $-$.013 & \gain{+26.5} \\
-Russia      & ru & .0700 & .0780 & 0.721 & 0.711 & +.008 & \loss{$-$11.3} \\
-Mexico      & es & .0775 & .0933 & 0.632 & 0.381 & +.016 & \loss{$-$20.3} \\
-Nigeria     & en & .0641 & .0512 & 0.124 & 0.156 & $-$.013 & \gain{+20.1} \\
-Australia   & en & .0541 & .0425 & 0.883 & 0.781 & $-$.012 & \gain{+21.4} \\
+USA & en &.0447 &.0440 & 0.887 & 0.738 & $-$.001 & \gain{+1.5} \\
+Germany & de &.0587 &.0534 & 0.893 & 0.803 & $-$.005 & \gain{+9.1} \\
+China & zh &.0507 &.0574 & 0.827 & 0.818 & +.007 & \loss{$-$13.1} \\
+Japan & ja &.0485 &.0592 & 0.846 & 0.805 & +.011 & \loss{$-$22.0} \\
+Brazil & pt &.0717 &.0645 & 0.552 & 0.422 & $-$.007 & \gain{+9.7} \\
+Saudi Arabia& ar &.0883 &.1015 & 0.704 & 0.625 & +.013 & \loss{$-$14.9} \\
+Vietnam & vi &.0900 &.0780 & 0.634 & 0.556 & $-$.012 & \gain{+13.1} \\
+France & fr &.0730 &.0681 & 0.647 & 0.652 & $-$.005 & \gain{+6.7} \\
+India & hi &.0737 &.0840 & 0.458 & 0.583 & +.010 & \loss{$-$13.8} \\
+South Korea & ko &.0529 &.0303 & 0.106 & 0.064 & $-$.023 & \gain{+43.0} \\
+Great Britain& en&.0470 &.0345 & 0.889 & 0.732 & $-$.013 & \gain{+26.5} \\
+Russia & ru &.0700 &.0780 & 0.721 & 0.711 & +.008 & \loss{$-$11.3} \\
+Mexico & es &.0775 &.0933 & 0.632 & 0.381 & +.016 & \loss{$-$20.3} \\
+Nigeria & en &.0641 &.0512 & 0.124 & 0.156 & $-$.013 & \gain{+20.1} \\
+Australia & en &.0541 &.0425 & 0.883 & 0.781 & $-$.012 & \gain{+21.4} \\
 \midrule
 \textbf{Mean} & & \textbf{.0632} & \textbf{.0633} & 0.625 & 0.550 & +.000 & \loss{\textbf{$-$0.2}} \\
 \bottomrule
@@ -1743,7 +1751,7 @@ Australia   & en & .0541 & .0425 & 0.883 & 0.781 & $-$.012 & \gain{+21.4} \\
 \section{Consensus-Shift Baselines}
 \label{app:cs_baseline}
 
-To isolate the contribution of MPPI's importance-weighted sampling from the
+To isolate the contribution of PT-IS's importance-weighted sampling from the
 simpler benefit of using persona consensus at all, we implement four deterministic
 shift baselines applied directly to the scalar consensus gap $\bar\delta$, all
 sharing the same batched forward pass and two-pass debiasing as SWA-PTIS:
@@ -1897,7 +1905,7 @@ engineering claim, not a scientific one.} Because no Moral Machine human
 AMCEs are available for these countries, we evaluate on 300 synthetic
 scenarios per country whose Vanilla AMCE is uniformly $50.0$ by construction.
 The only thing this experiment establishes is that the persona-construction,
-translation, batched-forward-pass, $\tau$-calibration, and MPPI-update code
+translation, batched-forward-pass, $\tau$-calibration, and IS-update code
 runs to completion across the 4 scripts and 5 language families above. The
 $\sim$$+0.05$pp ``AMCE shift'' is therefore measuring perturbation activity,
 not alignment, and the mean JSD numbers should not be compared to the main
@@ -1906,19 +1914,19 @@ silently English-specific.
 
 \begin{table}[h]\centering\small
 \caption{Extended country pipeline run (Llama-3.1-70B). The pipeline executes
-end-to-end for 4 script systems and 5 language families; MPPI-induced AMCE shifts
+end-to-end for 4 script systems and 5 language families; IS-induced AMCE shifts
 are detected in all 8 countries (mean $+0.05\pm0.02$~pp).}
 \label{tab:extended_countries}
 \begin{tabular}{llcccc}\toprule
 Country & Lang. & Script & AMCE Shift & Vanilla JSD & SWA JSD \\\midrule
-Poland (POL)      & Polish    & Latin    & $+$0.03 pp & 0.0496 & 0.0497 \\
-Turkey (TUR)      & Turkish   & Latin    & $+$0.04 pp & 0.0376 & 0.0377 \\
-Indonesia (IDN)   & Indonesian& Latin    & $+$0.06 pp & 0.0425 & 0.0424 \\
-Argentina (ARG)   & Spanish   & Latin    & $+$0.04 pp & 0.0388 & 0.0387 \\
-Ukraine (UKR)     & Ukrainian & Cyrillic & $+$0.07 pp & 0.0485 & 0.0483 \\
-Taiwan (TWN)      & Chinese   & CJK      & $+$0.03 pp & 0.0427 & 0.0426 \\
-Philippines (PHL) & Filipino  & Latin    & $+$0.06 pp & 0.0396 & 0.0396 \\
-Egypt (EGY)       & Arabic    & Arabic   & $+$0.06 pp & 0.0511 & 0.0513 \\\midrule
+Poland (POL) & Polish & Latin & $+$0.03 pp & 0.0496 & 0.0497 \\
+Turkey (TUR) & Turkish & Latin & $+$0.04 pp & 0.0376 & 0.0377 \\
+Indonesia (IDN) & Indonesian& Latin & $+$0.06 pp & 0.0425 & 0.0424 \\
+Argentina (ARG) & Spanish & Latin & $+$0.04 pp & 0.0388 & 0.0387 \\
+Ukraine (UKR) & Ukrainian & Cyrillic & $+$0.07 pp & 0.0485 & 0.0483 \\
+Taiwan (TWN) & Chinese & CJK & $+$0.03 pp & 0.0427 & 0.0426 \\
+Philippines (PHL) & Filipino & Latin & $+$0.06 pp & 0.0396 & 0.0396 \\
+Egypt (EGY) & Arabic & Arabic & $+$0.06 pp & 0.0511 & 0.0513 \\\midrule
 \textbf{Mean} & & & $\mathbf{+0.05\pm0.02}$ \textbf{pp} & 0.0438 & 0.0438 \\\bottomrule
 \end{tabular}
 \end{table}
@@ -1929,7 +1937,7 @@ distributions away from an uninformative prior; it cannot be interpreted as
 alignment improvement over human preferences and is not directly comparable to
 the main 15-country results. We include this probe purely to demonstrate that the
 WVS-grounded persona construction, the batched forward pass, the two-pass
-debiasing, and the MPPI loop all run end-to-end across right-to-left Arabic,
+debiasing, and the IS loop all run end-to-end across right-to-left Arabic,
 CJK, Cyrillic, and several Latin-script languages without any code change.
 Future work should collect human AMCE annotations for these countries to enable
 full quantitative evaluation.
@@ -1938,7 +1946,7 @@ full quantitative evaluation.
 \label{app:limitations}
 
 \paragraph{Single seed and stochasticity.}
-All reported numbers use one run per model with one MPPI random draw ($K{=}128$
+All reported numbers use one run per model with one IS random draw ($K{=}128$
 perturbations) per scenario; variance across seeds is not characterised here.
 
 \paragraph{Pearson $r$ in six dimensions.}
@@ -1975,14 +1983,14 @@ settings.
 One language per country may conflate linguistic and cultural effects.
 
 \paragraph{Model quantisation.}
-4-bit/Int8 quantisation may introduce logit artefacts affecting MPPI stability.
+4-bit/Int8 quantisation may introduce logit artefacts affecting IS stability.
 
 \paragraph{WVS temporal staleness.}
 Wave~7 ($\sim$2017--2022) data may not reflect current preferences in rapidly
 evolving societies.
 
 \paragraph{Qwen2.5-32B failure mode.}
-Concentrated logit distributions ($H{=}0.521$ nats) cause MPPI perturbations to
+Concentrated logit distributions ($H{=}0.521$ nats) cause IS perturbations to
 land off-manifold and yield near-uniform importance weights. Appendix~\ref{app:adaptive_sigma}
 shows that an entropy-aware $\sigma$ correctly diagnoses the cause but cannot
 fix it on its own, because all 8 evaluated countries share the same low
