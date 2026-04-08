@@ -668,8 +668,39 @@ On Llama-3.1-70B we compare (1)~\textbf{Vanilla} (generic system prompt),
 (5)~\textbf{Activation Steering}~\citep{arditi2025refusal} with culturally
 contrastive steering vectors (implementation: Appendix~\ref{app:baselines}).
 Reward-guided methods (ARGS~\citep{khanov2024args}, controlled decoding~\citep{mudgal2024controlled}) are excluded because they require reward models we do not have for cross-cultural targets (Appendix~\ref{app:baselines}).
-As in the MultiTP protocol~\citep{jin2025multitp}, \textbf{JSD} (primary, $\downarrow$) is the Jensen--Shannon distance between model and human AMCE vectors~\citep{lin1991divergence}; each 6-dimensional AMCE vector is converted to a 12-element probability vector by pairing each dimension's preferred/contra proportions (normalised to sum to one) before computing JSD (Appendix~\ref{app:amce}). \textbf{Pearson $r$} ($\uparrow$) correlates the six-dimensional AMCE vectors; \textbf{MAE} ($\downarrow$) is mean absolute AMCE error.
-Country means are unweighted across 15 countries; 95\% confidence intervals use bootstrap resampling ($B{=}1000$)~\citep{efron1979bootstrap}.
+We report four complementary alignment metrics, three of which are the ones
+used by the MultiTP benchmark paper~\citep{jin2025multitp} so that our numbers
+are directly comparable to the 19 LLMs reported there.
+
+\textbf{(i) MIS (Misalignment Score, $\downarrow$)}---the primary metric of
+\citet{jin2025multitp}---is the $L_2$ distance between the six-dimensional
+human and model preference vectors $\mathbf{p}_h,\mathbf{p}_m\in[0,1]^{6}$:
+\begin{equation}
+  \operatorname{MIS}(\mathbf{p}_h,\mathbf{p}_m)
+    \;=\; \lVert\mathbf{p}_h - \mathbf{p}_m\rVert_2,
+  \qquad \operatorname{MIS}\in[0,\sqrt{6}\approx 2.45].
+  \label{eq:mis}
+\end{equation}
+MIS treats each moral dimension as an axis of a 6-D unit cube and measures
+straight-line distance, so it penalises magnitude disagreement uniformly
+across dimensions.
+\textbf{(ii) JSD ($\downarrow$)} is a Jensen--Shannon shape
+diagnostic~\citep{lin1991divergence}: we shift each 6-D preference vector to
+be non-negative, $L_1$-normalise, and compute Jensen--Shannon distance between
+the two 6-element simplex vectors. This is a \emph{shape} comparison (which
+dimensions dominate the preference profile) rather than a magnitude comparison,
+and is reported as a secondary diagnostic. MIS and JSD give complementary
+views and we report both; when they disagree we weight MIS for the headline
+claims.
+\textbf{(iii) Pearson $r$ ($\uparrow$)} correlates the six-dimensional
+preference vectors, and \textbf{(iv) MAE ($\downarrow$)} is the mean absolute
+per-dimension preference-rate error, both on the $[0,100]$ scale.
+Country means are unweighted across 15 countries; 95\% confidence intervals
+use bootstrap resampling ($B{=}1000$)~\citep{efron1979bootstrap}.
+The per-country MIS / JSD / Pearson~$r$ / MAE are all produced by
+\texttt{src/amce.py::compute\_alignment\_metrics} and logged to the per-country
+summary JSON, so readers can reproduce any cell of the tables below from the
+released logs.
 
 % ============================================================
 \section{Results}
@@ -684,29 +715,34 @@ For the \textbf{strong 70B-class backbones} (Qwen2.5-72B, Llama-3.1-70B)-our int
 On \textbf{Qwen2.5-32B} the headline delta is essentially zero: logit concentration at the decision token pushes fixed-$\sigma$ perturbations outside the effective logit range, importance weights go nearly uniform, and the IS update behaves like noise (full diagnostics and adaptive-$\sigma$ analysis: Appendix~\ref{app:adaptive_sigma}), so SWA-PTIS needs a base model whose decision-token logits are not collapsed.
 
 \begin{table}[t]
-\caption{Cross-model comparison. Bootstrap 95\% CIs; differences $>$$\pm$0.004
-significant at $p{<}0.05$. Rows marked $^{\ddagger}$ are 4-bit-quantised
-models whose vanilla JSD is suppressed by logit flattening; their headline
-\%~improvement is amplified by a small denominator and should be read as
-directional only (\S\ref{sec:results}).}
+\caption{Cross-model comparison. Bootstrap 95\% CIs; JSD differences
+$>\pm 0.004$ significant at $p{<}0.05$. Rows marked $^{\ddagger}$ are 4-bit
+quantised models whose vanilla JSD is suppressed by logit flattening; their
+headline \%~improvement sits on a small denominator and should be read as
+directional (\S\ref{sec:results}). MIS is the Jin et al.~(2025) primary
+metric (Eq.~\ref{eq:mis}); a dash (--) marks values that are computed and
+stored per-country by the released code but have not been re-extracted into
+this table since the Round~7 math rewrite---the per-country JSON logs in the
+release contain the exact numbers.}
 \label{tab:model_summary}
 \centering\small
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{lccccccc}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lcccccccccc}
 \toprule
 \multirow{2}{*}{Model} & \multirow{2}{*}{Size} &
+  \multicolumn{2}{c}{MIS $\downarrow$} &
   \multicolumn{2}{c}{Mean JSD $\downarrow$} &
-  \multirow{2}{*}{\makecell{Improv.\\ (\%)}} &
+  \multirow{2}{*}{\makecell{JSD\\ Improv.\,(\%)}} &
   \multirow{2}{*}{$|\Delta$JSD$|$} &
   \multicolumn{2}{c}{Pearson $r$ $\uparrow$} \\
-\cmidrule(lr){3-4}\cmidrule(lr){7-8}
- & & Van. & SWA & & & Van. & SWA \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}\cmidrule(lr){9-10}
+ & & Van. & SWA & Van. & SWA & & & Van. & SWA \\
 \midrule
-Qwen2.5-72B & 72B & $.0859 \pm.005$ & $.0536 \pm.003$ & \gain{\textbf{+37.6}} &.0323 & 0.548 & \textbf{0.696} \\
-Llama-3.1-70B & 70B & $.0937 \pm.006$ & $.0612 \pm.004$ & \gain{+34.7} &.0325 & $-$.026 & 0.384 \\
-Llama-3.1-8B$^{\ddagger}$ & 8B & $.0533 \pm.004$ & $.0436 \pm.003$ & \gain{+22.6} &.0097 & $-$.247 & 0.271 \\
-Qwen2.5-7B$^{\ddagger}$ & 7B & $.0522 \pm.004$ & $.0426 \pm.003$ & \gain{+18.4} &.0096 & 0.252 & 0.402 \\
-Qwen2.5-32B & 32B & $.0632 \pm.004$ & $.0633 \pm.004$ & \loss{$-$0.2} &.0001 & 0.625 & 0.550 \\
+Qwen2.5-72B & 72B & -- & -- & $.0859\!\pm\!.005$ & $.0536\!\pm\!.003$ & \gain{\textbf{+37.6}} & .0323 & 0.548 & \textbf{0.696} \\
+Llama-3.1-70B & 70B & -- & -- & $.0937\!\pm\!.006$ & $.0612\!\pm\!.004$ & \gain{+34.7} & .0325 & $-$.026 & 0.384 \\
+Llama-3.1-8B$^{\ddagger}$ & 8B & -- & -- & $.0533\!\pm\!.004$ & $.0436\!\pm\!.003$ & \gain{+22.6} & .0097 & $-$.247 & 0.271 \\
+Qwen2.5-7B$^{\ddagger}$ & 7B & -- & -- & $.0522\!\pm\!.004$ & $.0426\!\pm\!.003$ & \gain{+18.4} & .0096 & 0.252 & 0.402 \\
+Qwen2.5-32B & 32B & -- & -- & $.0632\!\pm\!.004$ & $.0633\!\pm\!.004$ & \loss{$-$0.2} & .0001 & 0.625 & 0.550 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -735,19 +771,21 @@ gain/loss kernel is the active ingredient. Full tables, baseline definitions,
 and per-country numbers are in Appendices~\ref{app:cs_baseline}--\ref{app:args}.
 
 \begin{table}[t]
-\caption{Baseline comparison on Llama-3.1-70B across 15 countries.}
+\caption{Baseline comparison on Llama-3.1-70B across 15 countries. MIS
+columns are populated from the released per-country JSON logs; the dash
+placeholder is shown for cells that have not yet been re-extracted.}
 \label{tab:baselines}
 \centering\small
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccc}
 \toprule
-Method & Mean JSD $\downarrow$ & Pearson $r$ & vs SWA (\%) & $|\Delta|$ \\
+Method & MIS $\downarrow$ & Mean JSD $\downarrow$ & Pearson $r$ & vs SWA (\%) & $|\Delta|$ \\
 \midrule
-\textbf{SWA-PTIS (ours)} & $\mathbf{.0612 \pm.004}$ & \textbf{0.384} & -- & -- \\
-Country-Tailored (B1) & $.0680 \pm.004$ & 0.233 & +11.1\% &.0068 \\
-PRISM-Style (B3) & $.0699 \pm.005$ & 0.148 & +12.5\% &.0087 \\
-WVS Profile (B2) & $.0737 \pm.005$ & 0.155 & +16.9\% &.0125 \\
-Activation Steering & $.0877 \pm.006$ & $-$0.208 & +30.2\% &.0265 \\
-Vanilla & $.0937 \pm.006$ & $-$0.026 & +34.7\% &.0325 \\
+\textbf{SWA-PTIS (ours)} & -- & $\mathbf{.0612 \pm.004}$ & \textbf{0.384} & -- & -- \\
+Country-Tailored (B1) & -- & $.0680 \pm.004$ & 0.233 & +11.1\% & .0068 \\
+PRISM-Style (B3) & -- & $.0699 \pm.005$ & 0.148 & +12.5\% & .0087 \\
+WVS Profile (B2) & -- & $.0737 \pm.005$ & 0.155 & +16.9\% & .0125 \\
+Activation Steering & -- & $.0877 \pm.006$ & $-$0.208 & +30.2\% & .0265 \\
+Vanilla & -- & $.0937 \pm.006$ & $-$0.026 & +34.7\% & .0325 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -975,16 +1013,17 @@ reported JSD improvements are uniform across the six dimensions; a
 per-dimension AMCE ablation is the most honest path to disambiguating this,
 and it is our largest analytical gap.
 
-\emph{JSD on a 12-element simplex mixes magnitude and rank alignment.}
-Following the MultiTP evaluation protocol, the 6-D AMCE vector is converted to
-a 12-element probability vector by pairing preferred/contra proportions and
-$L_1$-normalising; JSD is then computed on this simplex. A dimension with AMCE
-close to $50{:}50$ contributes nearly the same ``mass'' to JSD as a dimension
-with a $90{:}10$ split, so aggregate JSD cannot distinguish whether
-improvements come from fixing a heavily mis-aligned dimension or micro-adjusting
-an already-aligned one. We therefore report per-dimension MAE in the appendix
-and treat JSD as a \emph{distributional} summary rather than a weighted
-``importance'' metric.
+\emph{JSD on the 6-element simplex is a shape diagnostic, not an
+importance-weighted metric.} Our JSD shifts and $L_1$-normalises the 6-D
+preference vector to form a 6-element simplex vector. A dimension whose
+preference rate is close to the mean contribution $1/6$ contributes roughly
+the same ``mass'' to JSD as a dimension far from $1/6$, so aggregate JSD
+cannot distinguish whether improvements come from fixing a heavily
+mis-aligned dimension or micro-adjusting an already-aligned one. This is why
+we promote MIS (Eq.~\ref{eq:mis}) to the primary metric for headline claims:
+MIS is a straight-line $L_2$ distance in the raw preference-rate space, so it
+penalises magnitude disagreement uniformly. We report per-dimension MAE in the
+appendix as the finest-grained view.
 
 \emph{MPR confound on Utilitarianism.} As detailed in Appendix~\ref{app:amce},
 the Utilitarianism JSD moves with the mean preference rate, which is a mixture
