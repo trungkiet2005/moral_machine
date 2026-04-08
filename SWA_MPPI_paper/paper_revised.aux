@@ -77,9 +77,9 @@
 \@writefile{toc}{\contentsline {paragraph}{Prospect-Theory value and collective utility.}{5}{section*.9}\protected@file@percent }
 \newlabel{eq:prospect}{{8}{5}{Prospect-Theory value and collective utility}{equation.8}{}}
 \newlabel{eq:util_total}{{9}{5}{Prospect-Theory value and collective utility}{equation.9}{}}
-\@writefile{toc}{\contentsline {paragraph}{Why there is no explicit control-cost term.}{5}{section*.10}\protected@file@percent }
 \citation{liu2024lost}
 \citation{liu2024lost}
+\@writefile{toc}{\contentsline {paragraph}{Why there is no explicit control-cost term.}{6}{section*.10}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Effective sample size guard.}{6}{section*.11}\protected@file@percent }
 \@writefile{toc}{\contentsline {paragraph}{Importance-weighted update.}{6}{section*.12}\protected@file@percent }
 \newlabel{eq:is_update}{{10}{6}{Importance-weighted update}{equation.10}{}}
@@ -91,64 +91,67 @@
 \citation{kahneman1979prospect}
 \citation{kahneman1979prospect}
 \citation{jin2025multitp}
-\citation{qwen2025technical}
-\citation{grattafiori2024llama}
-\citation{unsloth2024}
 \@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces SWA-PTIS Inference for Scenario $\mathbf  {x}$ in Country $c$}}{7}{algorithm.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
 \newlabel{alg:swa}{{1}{7}{SWA-PTIS Inference for Scenario $\mathbf {x}$ in Country $c$}{algorithm.1}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces SWA-PTIS hyperparameters. PT parameters from \citet  {kahneman1979prospect}; others validated on a held-out synthetic set with author proxy labels (Appendix~\ref {app:hyperparams}).}}{7}{table.caption.13}\protected@file@percent }
 \newlabel{tab:hyperparams}{{1}{7}{SWA-PTIS hyperparameters. PT parameters from \citet {kahneman1979prospect}; others validated on a held-out synthetic set with author proxy labels (Appendix~\ref {app:hyperparams})}{table.caption.13}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}Experimental Setup}{7}{section.4}\protected@file@percent }
-\newlabel{sec:experiments}{{4}{7}{Experimental Setup}{section.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Dataset}{7}{subsection.4.1}\protected@file@percent }
-\newlabel{sec:exp:data}{{4.1}{7}{Dataset}{subsection.4.1}{}}
+\citation{qwen2025technical}
+\citation{grattafiori2024llama}
+\citation{unsloth2024}
 \citation{kirk2024prism}
 \citation{arditi2025refusal}
 \citation{khanov2024args}
 \citation{mudgal2024controlled}
 \citation{jin2025multitp}
-\citation{jin2025multitp}
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {SWA-PTIS pipeline.} \textbf  {Left:} WVS-grounded persona construction (3 age cohorts + utilitarian). \textbf  {Middle:} Batched forward pass with positional debiasing. \textbf  {Right:} IS optimisation when inter-persona variance exceeds $\tau ^{(c)}$. }}{8}{figure.caption.14}\protected@file@percent }
 \newlabel{fig:overview}{{1}{8}{\textbf {SWA-PTIS pipeline.} \textbf {Left:} WVS-grounded persona construction (3 age cohorts + utilitarian). \textbf {Middle:} Batched forward pass with positional debiasing. \textbf {Right:} IS optimisation when inter-persona variance exceeds $\tau ^{(c)}$}{figure.caption.14}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces The six moral dimensions in MultiTP.}}{8}{table.caption.15}\protected@file@percent }
 \newlabel{tab:categories}{{2}{8}{The six moral dimensions in MultiTP}{table.caption.15}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Experimental Setup}{8}{section.4}\protected@file@percent }
+\newlabel{sec:experiments}{{4}{8}{Experimental Setup}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Dataset}{8}{subsection.4.1}\protected@file@percent }
+\newlabel{sec:exp:data}{{4.1}{8}{Dataset}{subsection.4.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Models}{8}{subsection.4.2}\protected@file@percent }
 \newlabel{sec:exp:models}{{4.2}{8}{Models}{subsection.4.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Baselines and metrics}{8}{subsection.4.3}\protected@file@percent }
-\newlabel{sec:exp:baselines_metrics}{{4.3}{8}{Baselines and metrics}{subsection.4.3}{}}
+\citation{jin2025multitp}
 \citation{lin1991divergence}
 \citation{efron1979bootstrap}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Cross-model comparison. Bootstrap 95\% CIs; JSD differences $>\pm 0.004$ significant at $p{<}0.05$. Rows marked $^{\ddagger }$ are 4-bit quantised models whose vanilla JSD is suppressed by logit flattening; their headline \%~improvement sits on a small denominator and should be read as directional (\S  \ref {sec:results}). MIS is the Jin et al.~(2025) primary metric (Eq.~\ref {eq:mis}); a dash (--) marks values that are computed and stored per-country by the released code but have not been re-extracted into this table since the Round~7 math rewrite---the per-country JSON logs in the release contain the exact numbers.}}{9}{table.caption.16}\protected@file@percent }
-\newlabel{tab:model_summary}{{3}{9}{Cross-model comparison. Bootstrap 95\% CIs; JSD differences $>\pm 0.004$ significant at $p{<}0.05$. Rows marked $^{\ddagger }$ are 4-bit quantised models whose vanilla JSD is suppressed by logit flattening; their headline \%~improvement sits on a small denominator and should be read as directional (\S \ref {sec:results}). MIS is the Jin et al.~(2025) primary metric (Eq.~\ref {eq:mis}); a dash (--) marks values that are computed and stored per-country by the released code but have not been re-extracted into this table since the Round~7 math rewrite---the per-country JSON logs in the release contain the exact numbers}{table.caption.16}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Baselines and metrics}{9}{subsection.4.3}\protected@file@percent }
+\newlabel{sec:exp:baselines_metrics}{{4.3}{9}{Baselines and metrics}{subsection.4.3}{}}
 \newlabel{eq:mis}{{12}{9}{Baselines and metrics}{equation.12}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {5}Results}{9}{section.5}\protected@file@percent }
 \newlabel{sec:results}{{5}{9}{Results}{section.5}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Cross-Model Comparison}{9}{subsection.5.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Baseline Comparison on Llama-3.1-70B}{9}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Isolating the active mechanism.}{9}{section*.17}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Cross-model comparison. Bootstrap 95\% CIs; JSD differences $>\pm 0.004$ significant at $p{<}0.05$. Rows marked $^{\ddagger }$ are 4-bit quantised models whose vanilla JSD is suppressed by logit flattening; their headline \%~improvement sits on a small denominator and should be read as directional (\S  \ref {sec:results}). MIS is the Jin et al.~(2025) primary metric (Eq.~\ref {eq:mis}); a dash (--) marks values that are computed and stored per-country by the released code but have not been re-extracted into this table since the Round~7 math rewrite---the per-country JSON logs in the release contain the exact numbers.}}{10}{table.caption.16}\protected@file@percent }
+\newlabel{tab:model_summary}{{3}{10}{Cross-model comparison. Bootstrap 95\% CIs; JSD differences $>\pm 0.004$ significant at $p{<}0.05$. Rows marked $^{\ddagger }$ are 4-bit quantised models whose vanilla JSD is suppressed by logit flattening; their headline \%~improvement sits on a small denominator and should be read as directional (\S \ref {sec:results}). MIS is the Jin et al.~(2025) primary metric (Eq.~\ref {eq:mis}); a dash (--) marks values that are computed and stored per-country by the released code but have not been re-extracted into this table since the Round~7 math rewrite---the per-country JSON logs in the release contain the exact numbers}{table.caption.16}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Baseline comparison on Llama-3.1-70B across 15 countries. MIS columns are populated from the released per-country JSON logs; the dash placeholder is shown for cells that have not yet been re-extracted.}}{10}{table.caption.18}\protected@file@percent }
 \newlabel{tab:baselines}{{4}{10}{Baseline comparison on Llama-3.1-70B across 15 countries. MIS columns are populated from the released per-country JSON logs; the dash placeholder is shown for cells that have not yet been re-extracted}{table.caption.18}{}}
-\@writefile{toc}{\contentsline {paragraph}{Isolating the active mechanism.}{10}{section*.17}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Per-Country Results Across Models}{10}{subsection.5.3}\protected@file@percent }
 \newlabel{sec:percountry_main}{{5.3}{10}{Per-Country Results Across Models}{subsection.5.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Robustness Suite at a Glance}{10}{subsection.5.4}\protected@file@percent }
 \newlabel{sec:robustness}{{5.4}{10}{Robustness Suite at a Glance}{subsection.5.4}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6}Ablation Study}{10}{section.6}\protected@file@percent }
-\newlabel{sec:ablation}{{6}{10}{Ablation Study}{section.6}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces \textbf  {Full per-country results across the four operating-regime models.} For each model and country we report vanilla and SWA-PTIS absolute Jensen--Shannon distance ($\downarrow $), the percentage JSD improvement, and vanilla and SWA-PTIS Pearson $r$ ($\uparrow $). Means at the bottom match the cross-model summary (Table~\ref {tab:model_summary}). The Qwen2.5-32B logit-collapse case is reported separately in Appendix~\ref {app:percountry_all}, Table~\ref {tab:qwen32b_percountry}.}}{11}{table.caption.19}\protected@file@percent }
 \newlabel{tab:percountry_main}{{5}{11}{\textbf {Full per-country results across the four operating-regime models.} For each model and country we report vanilla and SWA-PTIS absolute Jensen--Shannon distance ($\downarrow $), the percentage JSD improvement, and vanilla and SWA-PTIS Pearson $r$ ($\uparrow $). Means at the bottom match the cross-model summary (Table~\ref {tab:model_summary}). The Qwen2.5-32B logit-collapse case is reported separately in Appendix~\ref {app:percountry_all}, Table~\ref {tab:qwen32b_percountry}}{table.caption.19}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Robustness suite. Each test independently probes one assumption behind SWA-PTIS; the bootstrap confidence interval on JSD is $\pm 0.004$.}}{11}{table.caption.20}\protected@file@percent }
 \newlabel{tab:robustness_summary}{{6}{11}{Robustness suite. Each test independently probes one assumption behind SWA-PTIS; the bootstrap confidence interval on JSD is $\pm 0.004$}{table.caption.20}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {7}Discussion}{11}{section.7}\protected@file@percent }
-\newlabel{sec:discussion}{{7}{11}{Discussion}{section.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Ablation Study}{11}{section.6}\protected@file@percent }
+\newlabel{sec:ablation}{{6}{11}{Ablation Study}{section.6}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Ablation on Qwen2.5-72B, USA (342 scenarios). Full system: JSD = 0.0425, $r$ = 0.724.}}{12}{table.caption.21}\protected@file@percent }
 \newlabel{tab:ablation}{{7}{12}{Ablation on Qwen2.5-72B, USA (342 scenarios). Full system: JSD = 0.0425, $r$ = 0.724}{table.caption.21}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}Discussion}{12}{section.7}\protected@file@percent }
+\newlabel{sec:discussion}{{7}{12}{Discussion}{section.7}{}}
 \@writefile{toc}{\contentsline {paragraph}{Limitations.}{12}{section*.22}\protected@file@percent }
 \citation{awad2018moral,jin2025multitp}
 \citation{atari2023humans}
 \citation{sorensen2024roadmap}
 \citation{kahneman1979prospect}
 \citation{sorensen2024roadmap}
+\@writefile{toc}{\contentsline {paragraph}{Broader impact and safeguards.}{13}{section*.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{13}{section.8}\protected@file@percent }
+\newlabel{sec:conclusion}{{8}{13}{Conclusion}{section.8}{}}
 \citation{jin2025multitp}
 \citation{awad2018moral}
 \bibstyle{abbrvnat}
@@ -156,9 +159,6 @@
 \bibcite{aakanksha2024evalmor}{{1}{2024}{{Aakanksha et~al.}}{{}}}
 \bibcite{arditi2025refusal}{{2}{2025}{{Arditi et~al.}}{{Arditi, Obeso, Syed, Paleka, Panickssery, Gurnee, and Nanda}}}
 \bibcite{atari2023humans}{{3}{2023}{{Atari et~al.}}{{Atari, Xue, Park, Blasi, and Henrich}}}
-\@writefile{toc}{\contentsline {paragraph}{Broader impact and safeguards.}{13}{section*.23}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {8}Conclusion}{13}{section.8}\protected@file@percent }
-\newlabel{sec:conclusion}{{8}{13}{Conclusion}{section.8}{}}
 \bibcite{awad2018moral}{{4}{2018}{{Awad et~al.}}{{Awad, Dsouza, Kim, Schulz, Henrich, Shariff, Bonnefon, and Rahwan}}}
 \bibcite{bai2022constitutional}{{5}{2022}{{Bai et~al.}}{{Bai, Kadavath, Kundu, Askell, et~al.}}}
 \bibcite{deshpande2023toxicity}{{6}{2023}{{Deshpande et~al.}}{{Deshpande, Murahari, Rajpurohit, Kalyan, and Narasimhan}}}
@@ -281,8 +281,8 @@
 \newlabel{tab:consensus_shift_country}{{17}{26}{Per-country JSD for the four consensus-shift baselines on Llama-3.1-70B (15 countries). \textsc {CS-Clamp} is the strongest deterministic shift but still loses to SWA-PTIS in aggregate; \textsc {CS-Std} is catastrophic for NGA ($+0.017$ vs.\ \textsc {CS-Mean}) due to unbounded variance amplification}{table.caption.44}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {Q}Extended Country Pipeline Run (Engineering Check)}{26}{appendix.Q}\protected@file@percent }
 \newlabel{app:extended}{{Q}{26}{Extended Country Pipeline Run (Engineering Check)}{appendix.Q}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {18}{\ignorespaces Binary-ARGS per-country results (Llama-3.1-70B, 15 countries). \textsc  {ARGS-PT} achieves best or tied JSD in 13/15 countries and best $r$ in 11/15, confirming SWA-PTIS is precisely an ARGS variant with KL-regularised Prospect-Theory utility.}}{27}{table.caption.45}\protected@file@percent }
-\newlabel{tab:args_percountry}{{18}{27}{Binary-ARGS per-country results (Llama-3.1-70B, 15 countries). \textsc {ARGS-PT} achieves best or tied JSD in 13/15 countries and best $r$ in 11/15, confirming SWA-PTIS is precisely an ARGS variant with KL-regularised Prospect-Theory utility}{table.caption.45}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {18}{\ignorespaces Binary-ARGS per-country results (Llama-3.1-70B, 15 countries). \textsc  {ARGS-PT} achieves best or tied JSD in 13/15 countries and best $r$ in 11/15, confirming SWA-PTIS is precisely an ARGS variant with a Prospect-Theory utility over a Gaussian proposal.}}{27}{table.caption.45}\protected@file@percent }
+\newlabel{tab:args_percountry}{{18}{27}{Binary-ARGS per-country results (Llama-3.1-70B, 15 countries). \textsc {ARGS-PT} achieves best or tied JSD in 13/15 countries and best $r$ in 11/15, confirming SWA-PTIS is precisely an ARGS variant with a Prospect-Theory utility over a Gaussian proposal}{table.caption.45}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {19}{\ignorespaces Per-country JSD under fixed-$\sigma $ on Qwen2.5-32B. Two latent country clusters emerge: USA/JPN/GBR/KOR strongly prefer high $\sigma $ (USA: $0.0523\to 0.0317$ at $\sigma {=}1.0$); DEU/CHN/BRA/VNM strictly prefer low $\sigma $. All 8 countries share $H\approx 0.52$~nats, so the entropy signal alone cannot discriminate them.}}{27}{table.caption.46}\protected@file@percent }
 \newlabel{tab:sigma_percountry}{{19}{27}{Per-country JSD under fixed-$\sigma $ on Qwen2.5-32B. Two latent country clusters emerge: USA/JPN/GBR/KOR strongly prefer high $\sigma $ (USA: $0.0523\to 0.0317$ at $\sigma {=}1.0$); DEU/CHN/BRA/VNM strictly prefer low $\sigma $. All 8 countries share $H\approx 0.52$~nats, so the entropy signal alone cannot discriminate them}{table.caption.46}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {R}Extended Limitations}{27}{appendix.R}\protected@file@percent }

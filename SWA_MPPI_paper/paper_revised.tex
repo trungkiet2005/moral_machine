@@ -362,6 +362,14 @@ $N{=}4$ personas, the sample-std has relative uncertainty
 $\approx 1/\sqrt{2(N-1)}\approx 0.41$, so a point estimate can drift
 substantially below the true spread purely by chance, and a floor prevents
 the proposal from collapsing onto a single point in those cases.
+The specific value $\sigma_0{=}0.3$ is not tuned on the evaluation set: it
+coincides with the single fixed $\sigma$ used in the validation sweep on
+Qwen2.5-72B (Appendix~\ref{app:hyperparams}), carried over unchanged when
+$\sigma_k$ was made adaptive. We acknowledge this is not a
+first-principles derivation; Appendix~\ref{app:temp_sensitivity} shows that
+the method is not sensitive to the exact value in the $[0.1,\,1.0]$ range,
+which is the most honest sensitivity statement we can make from the sweeps
+we have.
 
 \paragraph{Per-agent gain in logit-gap units.}
 For each persona $i$, define the \emph{progress toward persona $i$'s target}
@@ -468,6 +476,14 @@ $K_{\text{eff}} = 1/\sum_k w_k^{\,2}$ serves as a per-scenario diagnostic of
 the exploration--exploitation balance.
 This softmax-weighted expectation is the standard importance-sampling estimator
 for a Boltzmann policy under utility $U_{\text{total}}$.
+We note that the update is still ``KL-regularised'' in the sense that the
+softmax-weighted sampler $q^{\star}$ is the minimiser of
+$-\mathbb{E}_{q}[U_{\text{total}}]+\eta\,\mathrm{KL}(q\,\|\,p)$ at the
+\emph{distributional} level (Appendix~\ref{app:is_theory:boltzmann}), where
+$p=\mathcal{N}(0,\sigma_k^{\,2})$ is the proposal. There is no explicit
+pointwise KL term added to $U_{\text{total}}$; the regularisation emerges
+from the softmax combined with the Gaussian prior, not from a hand-crafted
+penalty.
 
 \subsection{Positional Debiasing and Final Prediction}
 \label{sec:method:debias}
@@ -1011,7 +1027,13 @@ when SWA-PTIS aggregates over a whole country's scenario pool, low-$T_{\text{cat
 dimensions can dominate the importance weights. We do not claim that the
 reported JSD improvements are uniform across the six dimensions; a
 per-dimension AMCE ablation is the most honest path to disambiguating this,
-and it is our largest analytical gap.
+and it is our largest analytical gap. The released code exposes this
+decomposition via
+\texttt{src/amce.py::compute\_per\_dimension\_alignment}, which returns the
+per-dimension human value, model value, and signed error for each country;
+it is already logged in the per-country summary JSON. We leave the
+numerical writeup of that decomposition for a future revision rather than
+cherry-picking a subset of dimensions here.
 
 \emph{JSD on the 6-element simplex is a shape diagnostic, not an
 importance-weighted metric.} Our JSD shifts and $L_1$-normalises the 6-D
@@ -1083,7 +1105,7 @@ legitimised harm.
 Cross-cultural moral alignment is usually framed as a data and training
 problem; SWA-PTIS shows that a frozen model can still be steered toward
 country-level preferences when survey-grounded personas disagree, using a
-single KL-regularised importance-sampling step whose utility matches what
+single Prospect-Theory-weighted importance-sampling step whose utility matches what
 behavioural decision theory already says about moral trade-offs~\citep{kahneman1979prospect}.
 The headline is not a universal percentage gain across every model: the
 strongest evidence is on instruction-tuned 70B backbones, where there is room
@@ -1925,8 +1947,8 @@ AUS & 0.0868 & 0.0864 & 0.0861 & \textbf{0.0711} \\\midrule
 
 \textsc{CS-Mean} reproduces B5 PersonaConsensus exactly (cross-validating our
 ablation hierarchy). \textsc{CS-Std} \emph{degrades} relative to \textsc{CS-Mean}
-in 9/15 countries-variance amplification without KL regularisation actively
-hurts in high-disagreement regimes. \textsc{CS-Clamp} is the strongest
+in 9/15 countries-variance amplification without the asymmetric
+loss-sensitive utility actively hurts in high-disagreement regimes. \textsc{CS-Clamp} is the strongest
 deterministic shift; its largest improvements occur in high inter-persona-variance
 countries (USA $-0.015$, AUS $-0.016$, GBR $-0.012$), exactly where Prospect
 Theory's asymmetric weighting is most active. The residual aggregate gap
@@ -1949,8 +1971,8 @@ utility identical to the SWA-PTIS kernel.
 \begin{table}[h]\centering\scriptsize
 \caption{Binary-ARGS per-country results (Llama-3.1-70B, 15 countries).
 \textsc{ARGS-PT} achieves best or tied JSD in 13/15 countries and best $r$ in
-11/15, confirming SWA-PTIS is precisely an ARGS variant with KL-regularised
-Prospect-Theory utility.}
+11/15, confirming SWA-PTIS is precisely an ARGS variant with a
+Prospect-Theory utility over a Gaussian proposal.}
 \label{tab:args_percountry}
 \begin{tabular}{lcccccc}\toprule
  & \multicolumn{3}{c}{JSD $\downarrow$} & \multicolumn{3}{c}{Pearson $r$ $\uparrow$}\\
@@ -1982,10 +2004,14 @@ consensus averaging. \textbf{(2)}~\textsc{ARGS-WVS} (JSD~$0.0544$) is
 without asymmetric loss-sensitivity actively misaligns persona contributions.
 \textbf{(3)}~\textsc{ARGS-PT} (JSD~$0.0485$, $r$~$0.514$) is best/tied in 13/15
 countries and dominates on every aggregate metric, empirically showing that
-SWA-PTIS is precisely an ARGS variant with KL-regularised Prospect Theory. The
-two countries where \textsc{ARGS-PT} underperforms (BRA, IND) have the highest
-inter-persona variance and overcorrect without the KL term that SWA-PTIS provides
-through Eq.~\ref{eq:util_total}.
+SWA-PTIS is precisely an ARGS variant whose reward is a Prospect-Theory
+utility over a Gaussian proposal. The two countries where \textsc{ARGS-PT}
+underperforms (BRA, IND) have the highest inter-persona variance and
+overcorrect in the absence of the distributional
+$\mathrm{KL}(q\,\|\,p)$ trust region that SWA-PTIS's $\sigma_0$-floored
+Gaussian proposal enforces at the sampler level (see
+Appendix~\ref{app:is_theory:boltzmann} for the distributional-KL
+interpretation of the softmax update).
 
 \section{Entropy-Aware Adaptive $\sigma$ for Qwen2.5-32B}
 \label{app:adaptive_sigma}
