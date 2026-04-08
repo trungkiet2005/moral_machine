@@ -1,4 +1,4 @@
-\begin{thebibliography}{33}
+\begin{thebibliography}{35}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -18,6 +18,12 @@ A.~Arditi, O.~Obeso, A.~Syed, D.~Paleka, N.~Panickssery, W.~Gurnee, and
 \newblock Refusal in language models is mediated by a single direction.
 \newblock In \emph{Advances in Neural Information Processing Systems},
   volume~37, pages 136037--136083, 2025.
+
+\bibitem[Atari et~al.(2023)Atari, Xue, Park, Blasi, and
+  Henrich]{atari2023humans}
+M.~Atari, M.~J. Xue, P.~S. Park, D.~Blasi, and J.~Henrich.
+\newblock Which humans?
+\newblock \emph{arXiv preprint arXiv:2310.07321}, 2023.
 
 \bibitem[Awad et~al.(2018)Awad, Dsouza, Kim, Schulz, Henrich, Shariff,
   Bonnefon, and Rahwan]{awad2018moral}
@@ -44,6 +50,12 @@ E.~Durmus, K.~Nguyen, T.~I. Liao, N.~Schiefer, A.~Askell, A.~Bakhtin, et~al.
 \newblock Towards measuring the representation of subjective global opinions in
   language models.
 \newblock \emph{arXiv preprint arXiv:2306.16388}, 2023.
+
+\bibitem[Efron(1979)]{efron1979bootstrap}
+B.~Efron.
+\newblock Bootstrap methods: another look at the jackknife.
+\newblock \emph{The Annals of Statistics}, 7\penalty0 (1):\penalty0 1--26,
+  1979.
 
 \bibitem[Grattafiori et~al.(2024)Grattafiori, Dubey, Jauhri, Pandey, Kadian,
   et~al.]{grattafiori2024llama}
@@ -126,6 +138,12 @@ Y.~Li et~al.
   cultural adaptation.
 \newblock \emph{arXiv preprint arXiv:2409.02945}, 2024.
 
+\bibitem[Lin(1991)]{lin1991divergence}
+J.~Lin.
+\newblock Divergence measures based on the {Shannon} entropy.
+\newblock \emph{IEEE Transactions on Information Theory}, 37\penalty0
+  (1):\penalty0 145--151, 1991.
+
 \bibitem[Liu et~al.(2024)Liu, Lin, Hewitt, Paranjape, Bevilacqua, Petroni, and
   Liang]{liu2024lost}
 N.~F. Liu, K.~Lin, J.~Hewitt, A.~Paranjape, M.~Bevilacqua, F.~Petroni, and
@@ -133,12 +151,6 @@ N.~F. Liu, K.~Lin, J.~Hewitt, A.~Paranjape, M.~Bevilacqua, F.~Petroni, and
 \newblock Lost in the middle: How language models use long contexts.
 \newblock \emph{Transactions of the Association for Computational Linguistics},
   12:\penalty0 157--173, 2024.
-
-\bibitem[{Mistral AI Team}(2024)]{mistral2024}
-{Mistral AI Team}.
-\newblock Mistral {NeMo}.
-\newblock \emph{arXiv preprint arXiv:2407.xxxxx}, 2024.
-\newblock Mistral Large 2 (Instruct-2407) model card.
 
 \bibitem[Mudgal et~al.(2024)Mudgal, Lee, Ganapathy, Li, Wang, Huang, Chen,
   Cheng, Collins, Strohman, et~al.]{mudgal2024controlled}
