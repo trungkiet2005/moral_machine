@@ -4,6 +4,12 @@ Replication and extension of **"Language Model Alignment in Multilingual Trolley
 
 This project investigates whether LLM moral preferences are **language-dependent** in structured, reproducible ways not explained by translation quality alone — tested across **15 languages** and **6 moral dimensions**.
 
+> **Status:** the paper lane in `SWA_MPPI_paper/` (SWA-MPPI → SWA-PTIS) is
+> **archived as of 2026-04-09** — see [`SWA_MPPI_paper/DEPRECATED.md`](SWA_MPPI_paper/DEPRECATED.md).
+> The live paper is **DISCA** in the separate repo
+> [`trungkiet2005/cultural_alignment`](https://github.com/trungkiet2005/cultural_alignment)
+> (`exp_paper/Paper_New/SWA_DPBR/`). Do not mix results between the two.
+
 ---
 
 ## Research Questions
