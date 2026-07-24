@@ -1,0 +1,224 @@
+\begin{thebibliography}{33}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Aakanksha et~al.(2024)]{aakanksha2024evalmor}
+Aakanksha et~al.
+\newblock {EvalMORAAL}: Evaluating morality and alignment of llms across
+  cultures.
+\newblock \emph{arXiv preprint arXiv:2410.01999}, 2024.
+
+\bibitem[Arditi et~al.(2025)Arditi, Obeso, Syed, Paleka, Panickssery, Gurnee,
+  and Nanda]{arditi2025refusal}
+A.~Arditi, O.~Obeso, A.~Syed, D.~Paleka, N.~Panickssery, W.~Gurnee, and
+  N.~Nanda.
+\newblock Refusal in language models is mediated by a single direction.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~37, pages 136037--136083, 2025.
+
+\bibitem[Atari et~al.(2023)Atari, Xue, Park, Blasi, and
+  Henrich]{atari2023humans}
+M.~Atari, M.~J. Xue, P.~S. Park, D.~Blasi, and J.~Henrich.
+\newblock Which humans?
+\newblock \emph{arXiv preprint arXiv:2310.07321}, 2023.
+
+\bibitem[Awad et~al.(2018)Awad, Dsouza, Kim, Schulz, Henrich, Shariff,
+  Bonnefon, and Rahwan]{awad2018moral}
+E.~Awad, S.~Dsouza, R.~Kim, J.~Schulz, J.~Henrich, A.~Shariff, J.-F. Bonnefon,
+  and I.~Rahwan.
+\newblock The moral machine experiment.
+\newblock \emph{Nature}, 563\penalty0 (7729):\penalty0 59--64, 2018.
+
+\bibitem[Bai et~al.(2022)Bai, Kadavath, Kundu, Askell,
+  et~al.]{bai2022constitutional}
+Y.~Bai, S.~Kadavath, S.~Kundu, A.~Askell, et~al.
+\newblock Constitutional {AI}: Harmlessness from {AI} feedback.
+\newblock \emph{arXiv preprint arXiv:2212.08073}, 2022.
+
+\bibitem[Deshpande et~al.(2023)Deshpande, Murahari, Rajpurohit, Kalyan, and
+  Narasimhan]{deshpande2023toxicity}
+A.~Deshpande, V.~Murahari, T.~Rajpurohit, A.~Kalyan, and K.~Narasimhan.
+\newblock Toxicity in {ChatGPT}: Analyzing persona-assigned language models.
+\newblock \emph{arXiv preprint arXiv:2304.05335}, 2023.
+
+\bibitem[Durmus et~al.(2023)Durmus, Nguyen, Liao, Schiefer, Askell, Bakhtin,
+  et~al.]{durmus2023global}
+E.~Durmus, K.~Nguyen, T.~I. Liao, N.~Schiefer, A.~Askell, A.~Bakhtin, et~al.
+\newblock Towards measuring the representation of subjective global opinions in
+  language models.
+\newblock \emph{arXiv preprint arXiv:2306.16388}, 2023.
+
+\bibitem[Efron(1979)]{efron1979bootstrap}
+B.~Efron.
+\newblock Bootstrap methods: another look at the jackknife.
+\newblock \emph{The Annals of Statistics}, 7\penalty0 (1):\penalty0 1--26,
+  1979.
+
+\bibitem[Grattafiori et~al.(2024)Grattafiori, Dubey, Jauhri, Pandey, Kadian,
+  et~al.]{grattafiori2024llama}
+A.~Grattafiori, A.~Dubey, A.~Jauhri, A.~Pandey, A.~Kadian, et~al.
+\newblock The {Llama} 3 herd of models.
+\newblock \emph{arXiv preprint arXiv:2407.21783}, 2024.
+
+\bibitem[Haerpfer et~al.(2022)Haerpfer, Inglehart, Moreno, Welzel, Kizilova,
+  Diez-Medrano, Lagos, Norris, Ponarin, and Puranen]{haerpfer2022wvs}
+C.~Haerpfer, R.~Inglehart, A.~Moreno, C.~Welzel, K.~Kizilova, J.~Diez-Medrano,
+  M.~Lagos, P.~Norris, E.~Ponarin, and B.~Puranen.
+\newblock {World Values Survey}: Round seven -- country-pooled datafile.
+\newblock Madrid, Spain \& Vienna, Austria: JD Systems Institute \& WVSA
+  Secretariat, 2022.
+\newblock \url{https://doi.org/10.14281/18241.20}.
+
+\bibitem[Hendrycks et~al.(2021)Hendrycks, Burns, Basart, Critch, Li, Song, and
+  Steinhardt]{hendrycks2021aligning}
+D.~Hendrycks, C.~Burns, S.~Basart, A.~Critch, J.~Li, D.~Song, and
+  J.~Steinhardt.
+\newblock Aligning {AI} with shared human values.
+\newblock In \emph{International Conference on Learning Representations}, 2021.
+
+\bibitem[Henrich et~al.(2010)Henrich, Heine, and
+  Norenzayan]{henrich2010weirdest}
+J.~Henrich, S.~J. Heine, and A.~Norenzayan.
+\newblock The weirdest people in the world?
+\newblock \emph{Behavioral and Brain Sciences}, 33\penalty0 (2-3):\penalty0
+  61--83, 2010.
+
+\bibitem[Jin et~al.(2022)Jin, Levine, Gonzalez~Adauto, Kamal, Sap, Sachan,
+  Mihalcea, Tenenbaum, and Sch{\"o}lkopf]{jin2022exceptions}
+Z.~Jin, S.~Levine, F.~Gonzalez~Adauto, O.~Kamal, M.~Sap, M.~Sachan,
+  R.~Mihalcea, J.~Tenenbaum, and B.~Sch{\"o}lkopf.
+\newblock When to make exceptions: Exploring language models as accounts of
+  human moral judgment.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~35, pages 28458--28473, 2022.
+
+\bibitem[Jin et~al.(2025)Jin, Kleiman-Weiner, Piatti, Levine, Liu, Gonzalez,
+  Ortu, Strausz, Sachan, Mihalcea, Choi, and Sch{\"o}lkopf]{jin2025multitp}
+Z.~Jin, M.~Kleiman-Weiner, G.~Piatti, S.~Levine, J.~Liu, F.~Gonzalez, F.~Ortu,
+  A.~Strausz, M.~Sachan, R.~Mihalcea, Y.~Choi, and B.~Sch{\"o}lkopf.
+\newblock Language model alignment in multilingual trolley problems.
+\newblock \emph{arXiv preprint arXiv:2407.02273}, 2025.
+\newblock Published as a conference paper at ICLR 2025.
+
+\bibitem[Kahneman and Tversky(1979)]{kahneman1979prospect}
+D.~Kahneman and A.~Tversky.
+\newblock Prospect theory: An analysis of decision under risk.
+\newblock \emph{Econometrica}, 47\penalty0 (2):\penalty0 263--291, 1979.
+
+\bibitem[Khanov et~al.(2024)Khanov, Burapacheep, and Li]{khanov2024args}
+M.~Khanov, J.~Burapacheep, and Y.~Li.
+\newblock {ARGS}: Alignment as reward-guided search.
+\newblock \emph{arXiv preprint arXiv:2402.01694}, 2024.
+
+\bibitem[Kirk et~al.(2024)Kirk, Whitefield, R{\"o}ttger, Bean,
+  et~al.]{kirk2024prism}
+H.~R. Kirk, A.~Whitefield, P.~R{\"o}ttger, A.~Bean, et~al.
+\newblock The {PRISM} alignment project: What participatory, representative and
+  individualised human feedback reveals about the subjective and multicultural
+  alignment of large language models.
+\newblock \emph{arXiv preprint arXiv:2404.16019}, 2024.
+
+\bibitem[Kleiman-Weiner et~al.(2017)Kleiman-Weiner, Saxe, and
+  Tenenbaum]{kleiman2017learning}
+M.~Kleiman-Weiner, R.~Saxe, and J.~B. Tenenbaum.
+\newblock Learning a commonsense moral theory.
+\newblock \emph{Cognition}, 167:\penalty0 107--123, 2017.
+
+\bibitem[Li et~al.(2024)]{li2024culturemanager}
+Y.~Li et~al.
+\newblock Culturemanager: Managing cultural differences in llms through
+  cultural adaptation.
+\newblock \emph{arXiv preprint arXiv:2409.02945}, 2024.
+
+\bibitem[Lin(1991)]{lin1991divergence}
+J.~Lin.
+\newblock Divergence measures based on the {Shannon} entropy.
+\newblock \emph{IEEE Transactions on Information Theory}, 37\penalty0
+  (1):\penalty0 145--151, 1991.
+
+\bibitem[Liu et~al.(2024)Liu, Lin, Hewitt, Paranjape, Bevilacqua, Petroni, and
+  Liang]{liu2024lost}
+N.~F. Liu, K.~Lin, J.~Hewitt, A.~Paranjape, M.~Bevilacqua, F.~Petroni, and
+  P.~Liang.
+\newblock Lost in the middle: How language models use long contexts.
+\newblock \emph{Transactions of the Association for Computational Linguistics},
+  12:\penalty0 157--173, 2024.
+
+\bibitem[Mudgal et~al.(2024)Mudgal, Lee, Ganapathy, Li, Wang, Huang, Chen,
+  Cheng, Collins, Strohman, et~al.]{mudgal2024controlled}
+S.~Mudgal, J.~Lee, H.~Ganapathy, Y.~Li, T.~Wang, Y.~Huang, Z.~Chen, H.-T.
+  Cheng, M.~Collins, T.~Strohman, et~al.
+\newblock Controlled decoding from language models.
+\newblock \emph{arXiv preprint arXiv:2310.17022}, 2024.
+
+\bibitem[Myung et~al.(2024)]{myung2024carb}
+J.~Myung et~al.
+\newblock {CARB}: Cultural alignment reasoning benchmark for large language
+  models.
+\newblock \emph{arXiv preprint arXiv:2406.14766}, 2024.
+
+\bibitem[Nie et~al.(2023)Nie, Zhang, Amdekar, Piech, Hashimoto, and
+  Gerstenberg]{nie2023moca}
+A.~Nie, Y.~Zhang, A.~Amdekar, C.~Piech, T.~B. Hashimoto, and T.~Gerstenberg.
+\newblock {MoCa}: Measuring human-language model alignment on causal and moral
+  judgment tasks.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~36, 2023.
+
+\bibitem[Ouyang et~al.(2022)Ouyang, Wu, Jiang, Almeida,
+  et~al.]{ouyang2022instructgpt}
+L.~Ouyang, J.~Wu, X.~Jiang, D.~Almeida, et~al.
+\newblock Training language models to follow instructions with human feedback.
+\newblock \emph{Advances in Neural Information Processing Systems},
+  35:\penalty0 27730--27744, 2022.
+
+\bibitem[{Qwen Team}(2025)]{qwen2025technical}
+{Qwen Team}.
+\newblock Qwen2.5 technical report.
+\newblock \emph{arXiv preprint arXiv:2412.15115}, 2025.
+
+\bibitem[Ryan et~al.(2024)Ryan, Held, and Yang]{ryan2024unintended}
+M.~J. Ryan, W.~Held, and D.~Yang.
+\newblock Unintended impacts of {LLM} alignment on global representation.
+\newblock \emph{arXiv preprint arXiv:2402.15018}, 2024.
+
+\bibitem[Santurkar et~al.(2023)Santurkar, Durmus, Ladhak, Lee, Liang, and
+  Hashimoto]{santurkar2023opinions}
+S.~Santurkar, E.~Durmus, F.~Ladhak, C.~Lee, P.~Liang, and T.~Hashimoto.
+\newblock Whose opinions do language models reflect?
+\newblock \emph{arXiv preprint arXiv:2303.17548}, 2023.
+
+\bibitem[Sorensen et~al.(2024)Sorensen, Moore, Fisher, Gordon, Mireshghallah,
+  Rytting, Ye, Jiang, Lu, Dziri, et~al.]{sorensen2024roadmap}
+T.~Sorensen, J.~Moore, J.~Fisher, M.~Gordon, N.~Mireshghallah, C.~M. Rytting,
+  A.~Ye, L.~Jiang, X.~Lu, N.~Dziri, et~al.
+\newblock A roadmap to pluralistic alignment.
+\newblock \emph{arXiv preprint arXiv:2402.05070}, 2024.
+
+\bibitem[{Unsloth AI}(2024)]{unsloth2024}
+{Unsloth AI}.
+\newblock Unsloth: Fast {LLM} fine-tuning and inference.
+\newblock \url{https://github.com/unslothai/unsloth}, 2024.
+
+\bibitem[Yao et~al.(2024)]{yao2024caredio}
+J.~Yao et~al.
+\newblock {CAReDiO}: Cultural alignment of llm via reinforcement learning from
+  diverse human feedback with direct preference optimization.
+\newblock \emph{arXiv preprint arXiv:2410.18203}, 2024.
+
+\bibitem[Zhang et~al.(2024)]{ogmar2024}
+W.~Zhang et~al.
+\newblock {OG-MAR}: Ontology-guided moral alignment and reasoning in large
+  language models.
+\newblock \emph{arXiv preprint arXiv:2406.04264}, 2024.
+
+\bibitem[Zou et~al.(2023)Zou, Phan, Chen, Campbell, Guo,
+  et~al.]{zou2023representation}
+A.~Zou, L.~Phan, S.~Chen, J.~Campbell, P.~Guo, et~al.
+\newblock Representation engineering: A top-down approach to {AI} transparency.
+\newblock \emph{arXiv preprint arXiv:2310.01405}, 2023.
+
+\end{thebibliography}
